@@ -4,14 +4,57 @@ import 'package:conecta_utsh/helpers/helpers.dart';
 class Style {
   /// ---------- Colors ---------- ///
 
-  // Primary Colors
-  static const pink = Color(0xFFF04DA1);
-  static const yellow = Color(0xFFFFCA3D);
-  static const grey = Color(0xFFD2D3D3);
-  static const kingBlue = Color(0xFF021E42);
-  static const lightBlue = Color(0xFF0057AD);
+  // Primary Colors light
+  static const Color primary = Color(0xFF007A1C);
+  static const Color secondary = Color(0xFF64748B);
+  static const Color accent = Color(0xFFEAB308);
+  static const Color tags = Color(0xFFFEF9C3);
+
+  static const Color background = Color(0xFFF8FAF8);
+  static const Color backgroundCard = Color(0xFFFFFFFF);
+
+  static const Color success = Color(0xFF16A34A);
+  static const Color warning = Color(0xFFD97706);
+  static const Color error = Color(0xFFDC2626);
+  static const Color info = Color(0xFF2563EB);
+
+  static const Color txPrimary = Color(0xFF17251A);
+  static const Color txSecondary = Color(0xFF647067);
+  static const Color txMuted = Color(0xFF94A39A);
+  static const Color txInverse = Color(0xFFFFFFFF);
+
+  static const Color icon = Color(0xFF334155);
+  static const Color subtle = Color(0xFFD5E8EB);
+  static const Color successBackground = Color(0xFFD9F2F6);
+
+  // Primary Colors dark
+  static const Color primaryDark = Color(0xFF007A1C);
+  static const Color secondaryDark = Color(0xFF94A3B8);
+  static const Color accentDark = Color(0xFFFACC15);
+  static const Color tagsDark = Color(0xFF3F2E05);
+
+  static const Color backgroundDark = Color(0xFF121214);
+  static const Color backgroundCardDark = Color(0xFF1E1E24);
+
+  static const Color successDark = Color(0xFF4ADE80);
+  static const Color warningDark = Color(0xFFFBBF24);
+  static const Color errorDark = Color(0xFFF87171);
+  static const Color infoDark = Color(0xFF60A5FA);
+
+  static const Color txPrimaryDark = Color(0xFFF8FAF8);
+  static const Color txSecondaryDark = Color(0xFF94A3B8);
+  static const Color txMutedDark = Color(0xFF64748B);
+  static const Color txInverseDark = Color(0xFF121214);
+
+  static const Color iconDark = Color(0xFF94A3B8);
+  static const Color subtleDark = Color(0xFF2D3748);
+  static const Color successBackgroundDark = Color(0xFF0B2512);
+
+  // primary colors dark
 
   // ------- Dynamic Colors
+  static bool get isDarkModeOn => AppSettings.isDarkModeOn;
+
   static Color getPrimaryColor() => AppSettings.isDarkModeOn
       ? AppSettings.primaryDarkColor
       : AppSettings.primaryLightColor;
@@ -24,38 +67,41 @@ class Style {
       ? AppSettings.accentDarkColor
       : AppSettings.accentLightColor;
 
-  static Color getTextColor() => AppSettings.isDarkModeOn ? white : black;
-  static Color getObscureTextColor() => AppSettings.isDarkModeOn
-      ? white.withValues(alpha: .6)
-      : black.withValues(alpha: .6);
+  static Color getTagColor() => isDarkModeOn ? tagsDark : tags;
 
-  static Color getErrorColor() => AppSettings.isDarkModeOn ? red : kingBlue;
-
-  // Background
   static Color getBackgroundColor() =>
-      AppSettings.isDarkModeOn ? darkScaffoldColor : lightScaffoldColor;
+      isDarkModeOn ? backgroundDark : background;
   static Color getCardColor() =>
-      AppSettings.isDarkModeOn ? darkCardColor : lightCardColor;
-  static Color getAppBarColor() =>
-      AppSettings.isDarkModeOn ? darkAppBarColor : lightAppBarColor;
+      isDarkModeOn ? backgroundCardDark : backgroundCard;
+  static Color getAppBarColor() => getCardColor();
+
+  static Color getSuccessColor() => isDarkModeOn ? successDark : success;
+  static Color getWarningColor() => isDarkModeOn ? warningDark : warning;
+  static Color getErrorColor() => isDarkModeOn ? errorDark : error;
+  static Color getInfoColor() => isDarkModeOn ? infoDark : info;
+  static Color getSuccessBackgroundColor() =>
+      isDarkModeOn ? successBackgroundDark : successBackground;
+
+  static Color getTextColor() => isDarkModeOn ? txPrimaryDark : txPrimary;
+  static Color getObscureTextColor() =>
+      AppSettings.isDarkModeOn ? txSecondaryDark : txSecondary;
+  static Color getMutedTextColor() => isDarkModeOn ? txMutedDark : txMuted;
+  static Color getInverseTextColor() =>
+      isDarkModeOn ? txInverseDark : txInverse;
+  static Color getIconColor() => isDarkModeOn ? iconDark : icon;
+  static Color getSubtleColor() => isDarkModeOn ? subtleDark : subtle;
 
   // Border
-  static Color getBorderColor() => AppSettings.isDarkModeOn
-      ? const Color.fromARGB(255, 130, 131, 131)
-      : grey;
+  static Color getBorderColor() => getSubtleColor();
 
-    static Color getFormFieldBorderColor() => AppSettings.isDarkModeOn
-      ? white.withValues(alpha: .24)
-      : black.withValues(alpha: .18);
+  static Color getFormFieldBorderColor() =>
+      getTextColor().withValues(alpha: .18);
 
-    static Color getFormFieldDisabledBorderColor() => AppSettings.isDarkModeOn
-      ? white.withValues(alpha: .14)
-      : black.withValues(alpha: .10);
+  static Color getFormFieldDisabledBorderColor() =>
+      getTextColor().withValues(alpha: .10);
 
   // Shadow
-  static Color getShadowColor() => AppSettings.isDarkModeOn
-      ? white.withValues(alpha: .1)
-      : black.withValues(alpha: .1);
+  static Color getShadowColor() => getTextColor().withValues(alpha: .1);
 
   // ------- Other Colors
   static const darkScaffoldColor = Color(0xFF1a1d21);

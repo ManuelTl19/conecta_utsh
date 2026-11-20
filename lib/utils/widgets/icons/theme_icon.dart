@@ -15,7 +15,14 @@ class _ThemeIconState extends State<ThemeIcon> {
   Widget build(BuildContext context) {
     return Consumer<AppSettings>(
       builder: (context, value, child) => GestureDetector(
-        onTap: () => value.changeTheme(),
+        onTap: () async {
+          final saved = await value.changeTheme();
+          if (!saved && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No se pudo guardar el tema.')),
+            );
+          }
+        },
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 500),
           switchInCurve: Curves.easeInOut,

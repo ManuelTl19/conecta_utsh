@@ -1,4 +1,3 @@
-
 import 'package:conecta_utsh/helpers/helpers.dart';
 import 'package:conecta_utsh/utils/utils.dart';
 
@@ -9,18 +8,16 @@ class AppSettings extends ChangeNotifier {
   factory AppSettings() => _instance;
 
   // Private named constructor
-  AppSettings._internal() {
-    getSettings();
-  }
+  AppSettings._internal();
 
-    // Private instance variables
-  Color _primaryLightColor = const Color.fromARGB(255, 108, 29, 255);
-  Color _secondaryLightColor = Style.lightBlue;
-  Color _accentLightColor = Style.yellow;
+  // Private instance variables
+  Color _primaryLightColor = Style.primary;
+  Color _secondaryLightColor = Style.secondary;
+  Color _accentLightColor = Style.accent;
 
-  Color _primaryDarkColor = const Color(0xFF6366F1);
-  Color _secondaryDarkColor = const Color(0xFF818CF8);
-  Color _accentDarkColor = const Color(0xFF94A3B8);
+  Color _primaryDarkColor = Style.primaryDark;
+  Color _secondaryDarkColor = Style.secondaryDark;
+  Color _accentDarkColor = Style.accentDark;
 
   bool _isDarkModeOn = false;
   bool _isSignedIn = false;
@@ -99,10 +96,14 @@ class AppSettings extends ChangeNotifier {
 
   notify() => notifyListeners();
 
-  changeTheme() {
-    isDarkModeOn = !isDarkModeOn;
-    saveDarkMode(isDarkModeOn);
-    notifyListeners();
+  Future<bool> changeTheme() async {
+    final nextMode = !_instance._isDarkModeOn;
+    final saved = await saveDarkMode(nextMode);
+    if (!saved) return false;
+
+    _instance._isDarkModeOn = nextMode;
+    _instance.notifyListeners();
+    return true;
   }
 
   changeLanguage(BuildContext context) async {
@@ -114,11 +115,12 @@ class AppSettings extends ChangeNotifier {
 
   // Get all settings
   static Future<void> getSettings() async {
-    isDarkModeOn = await getDarkMode();
-    doneOnboarding = await getOnboarding();
+    _instance._isDarkModeOn = await getDarkMode();
+    _instance._isOnboarding = await getOnboarding();
     _instance._isBiometricEnabled = prefs.getBool('biometric_enabled') ?? false;
     _instance._loginDate =
         prefs.getString(Constants.loginDateKey) ?? DateTime.now().toString();
+    _instance.notifyListeners();
   }
 
   static Future<bool> getBiometricEnabled() async {
