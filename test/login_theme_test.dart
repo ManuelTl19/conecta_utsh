@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:conecta_utsh/helpers/constants.dart';
 import 'package:conecta_utsh/helpers/providers/providers.dart';
-import 'package:conecta_utsh/modules/auth/screens/login_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/login_screen.dart';
 
 void main() {
   setUp(() async {

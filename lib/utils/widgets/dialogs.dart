@@ -1,6 +1,6 @@
 import 'package:conecta_utsh/helpers/helpers.dart';
-import 'package:conecta_utsh/modules/apps/components/overlays/overlays.dart';
-import 'package:conecta_utsh/modules/apps/components/overlays/dialog_animation.dart';
+import 'package:conecta_utsh/modules/app/components/overlays/overlays.dart';
+import 'package:conecta_utsh/modules/app/components/overlays/dialog_animation.dart';
 import 'package:lottie/lottie.dart';
 
 class Dialogs {

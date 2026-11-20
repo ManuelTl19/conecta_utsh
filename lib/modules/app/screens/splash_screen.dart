@@ -5,7 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/helpers/assets.dart';
 import 'package:conecta_utsh/helpers/navigation.dart';
 import 'package:conecta_utsh/helpers/style.dart';
-import 'package:conecta_utsh/modules/auth/screens/welcome_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/welcome_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

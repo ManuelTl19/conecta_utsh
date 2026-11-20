@@ -5,8 +5,8 @@ import 'package:conecta_utsh/helpers/constants.dart';
 import 'package:conecta_utsh/helpers/navigation.dart';
 import 'package:conecta_utsh/helpers/providers/providers.dart';
 import 'package:conecta_utsh/helpers/style.dart';
-import 'package:conecta_utsh/modules/auth/screens/login_screen.dart';
-import 'package:conecta_utsh/modules/auth/widgets/primary_button.dart';
+import 'package:conecta_utsh/modules/app/screens/login_screen.dart';
+import 'package:conecta_utsh/modules/app/components/primary_button.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});

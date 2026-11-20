@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:conecta_utsh/helpers/providers/providers.dart';
 import 'package:conecta_utsh/helpers/style.dart';
-import 'package:conecta_utsh/modules/auth/screens/splash_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

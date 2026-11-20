@@ -1,14 +1,27 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:material_ui/material_ui.dart';
 
 import 'package:conecta_utsh/helpers/providers/app_settings.dart';
 import 'package:conecta_utsh/helpers/style.dart';
-import 'package:conecta_utsh/modules/auth/widgets/primary_button.dart';
+import 'package:conecta_utsh/modules/app/components/app_text_field.dart';
+import 'package:conecta_utsh/modules/app/components/primary_button.dart';
+import 'package:conecta_utsh/modules/app/models/login_model.dart';
+import 'package:conecta_utsh/modules/app/screens/register_screen.dart';
+import 'package:conecta_utsh/modules/app/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({this.onSubmit, this.onCreateAccount, super.key});
+  const LoginScreen({
+    this.onSubmit,
+    this.onCreateAccount,
+    this.authService,
+    super.key,
+  });
 
   final void Function(String enrollment, String password)? onSubmit;
   final VoidCallback? onCreateAccount;
+  final AuthService? authService;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -20,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isSavingTheme = false;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -28,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final onSubmit = widget.onSubmit;
@@ -37,7 +51,41 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    _showNotConfigured('La autenticación aún no está configurada.');
+    final service = widget.authService;
+    if (service == null) {
+      _showMessage('La autenticación aún no está configurada.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      await service.login(
+        LoginModel(
+          enrollment: _enrollmentController.text.trim(),
+          password: _passwordController.text,
+        ),
+      );
+      if (!mounted) return;
+      AppSettings.isSignedIn = true;
+      AppSettings.loginDate = DateTime.now().toIso8601String();
+      _showMessage('Sesión iniciada correctamente.');
+    } on AuthApiException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } on SocketException {
+      if (mounted) {
+        _showMessage('No fue posible conectar con el servidor.');
+      }
+    } on FormatException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } on HttpException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } on TimeoutException {
+      if (mounted) {
+        _showMessage('La solicitud tardó demasiado. Inténtalo otra vez.');
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   void _createAccount() {
@@ -46,7 +94,11 @@ class _LoginScreenState extends State<LoginScreen> {
       onCreateAccount();
       return;
     }
-    _showNotConfigured('La creación de cuenta aún no está configurada.');
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RegisterScreen(authService: widget.authService),
+      ),
+    );
   }
 
   Future<void> _toggleTheme() async {
@@ -55,13 +107,13 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final saved = await AppSettings().changeTheme();
       if (!mounted) return;
-      if (!saved) _showNotConfigured('No se pudo guardar el tema.');
+      if (!saved) _showMessage('No se pudo guardar el tema.');
     } finally {
       if (mounted) setState(() => _isSavingTheme = false);
     }
   }
 
-  void _showNotConfigured(String message) {
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
@@ -88,6 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     isSavingTheme: _isSavingTheme,
                   ),
                 ),
+                SizedBox(height: 20),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(28, 12, 28, 24),
@@ -106,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 22),
-                          _LoginField(
+                          AppTextField(
                             controller: _enrollmentController,
                             hint: 'Inserta tu matrícula',
                             textInputAction: TextInputAction.next,
@@ -116,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : null,
                           ),
                           const SizedBox(height: 18),
-                          _LoginField(
+                          AppTextField(
                             controller: _passwordController,
                             hint: 'Inserta tu contraseña',
                             obscureText: _obscurePassword,
@@ -144,8 +197,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           // Cambiar a "Iniciar sesión" cuando el flujo final
                           // confirme que el botón autentica y no registra.
                           PrimaryButton(
-                            label: 'Registrarse',
-                            onPressed: _submit,
+                            label: 'Iniciar sesión',
+                            onPressed: _isSubmitting ? null : _submit,
                           ),
                           const SizedBox(height: 18),
                           Wrap(
@@ -215,31 +268,22 @@ class _LoginHeader extends StatelessWidget {
             Positioned(
               top: 16,
               left: 44,
-              child: _HeaderStripe(height: 145, width: 20),
+              child: _HeaderIcon(icon: Icons.circle, size: 20),
             ),
             Positioned(
               top: 52,
               left: 102,
-              child: _HeaderStripe(height: 130, width: 26),
+              child: _HeaderIcon(icon: Icons.circle, size: 26),
             ),
             Positioned(
               top: 52,
               left: 160,
-              child: _HeaderStripe(height: 130, width: 26),
+              child: _HeaderIcon(icon: Icons.circle, size: 26),
             ),
             Positioned(
               top: 16,
               right: 45,
-              child: _HeaderStripe(height: 145, width: 20),
-            ),
-            Positioned(
-              left: 20,
-              top: MediaQuery.paddingOf(context).top + 10,
-              child: _HeaderActionButton(
-                tooltip: 'Volver',
-                onPressed: onBack,
-                icon: Icons.arrow_back_ios_new,
-              ),
+              child: _HeaderIcon(icon: Icons.circle, size: 20),
             ),
             Positioned(
               right: 20,
@@ -313,83 +357,19 @@ class _HeaderActionButton extends StatelessWidget {
   }
 }
 
-class _HeaderStripe extends StatelessWidget {
-  const _HeaderStripe({required this.height, required this.width});
+class _HeaderIcon extends StatelessWidget {
+  const _HeaderIcon({required this.icon, required this.size});
 
-  final double height;
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      width: width,
-      decoration: BoxDecoration(
-        color: Style.getInverseTextColor().withValues(alpha: .055),
-        borderRadius: BorderRadius.circular(width),
-      ),
-    );
-  }
-}
-
-class _LoginField extends StatelessWidget {
-  const _LoginField({
-    required this.controller,
-    required this.hint,
-    required this.validator,
-    this.obscureText = false,
-    this.textInputAction,
-    this.suffixIcon,
-  });
-
-  final TextEditingController controller;
-  final String hint;
-  final String? Function(String?) validator;
-  final bool obscureText;
-  final TextInputAction? textInputAction;
-  final Widget? suffixIcon;
+  final IconData icon;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      textInputAction: textInputAction,
-      validator: validator,
-      style: Style.getTextStyle(color: Style.getTextColor(), fontSize: 12),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: Style.getHintStyle(
-          color: Style.getObscureTextColor(),
-          fontSize: 12,
-        ),
-        filled: true,
-        fillColor: Style.getSubtleColor(),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 15,
-        ),
-        suffixIcon: suffixIcon,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Style.getPrimaryColor(), width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Style.getErrorColor()),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Style.getErrorColor(), width: 1.5),
-        ),
+    return ExcludeSemantics(
+      child: Icon(
+        icon,
+        size: size,
+        color: Style.getInverseTextColor().withValues(alpha: .08),
       ),
     );
   }
