@@ -6,7 +6,7 @@ import 'package:conecta_utsh/modules/app/components/step_indicator.dart';
 import 'package:conecta_utsh/modules/app/models/location_catalog.dart';
 import 'package:conecta_utsh/modules/app/models/login_response_model.dart';
 import 'package:conecta_utsh/modules/app/models/user_preferences_model.dart';
-import 'package:conecta_utsh/modules/app/screens/home_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/dashboard_screen.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
 import 'package:conecta_utsh/modules/app/services/user_preferences_service.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart';
@@ -121,8 +121,10 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) =>
-              HomeScreen(user: widget.user, authService: widget.authService),
+          builder: (_) => DashboardScreen(
+            user: widget.user,
+            authService: widget.authService,
+          ),
         ),
       );
     } on StateError catch (error) {
@@ -221,8 +223,7 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
               label: specialization,
               icon: _specializationIcons[specialization]!,
               selected: _selectedSpecializations.contains(specialization),
-              onTap: () =>
-                  _toggle(_selectedSpecializations, specialization),
+              onTap: () => _toggle(_selectedSpecializations, specialization),
             ),
         ],
       ],
@@ -293,10 +294,8 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
             ),
             items: mexicanLocations
                 .map(
-                  (location) => DropdownMenuItem(
-                    value: location,
-                    child: Text(location),
-                  ),
+                  (location) =>
+                      DropdownMenuItem(value: location, child: Text(location)),
                 )
                 .toList(),
             onChanged: (value) => setState(() => _selectedLocation = value),
@@ -342,9 +341,7 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
           : Row(
               children: [
                 OutlinedButton.icon(
-                  onPressed: _isSaving
-                      ? null
-                      : () => setState(() => _step = 0),
+                  onPressed: _isSaving ? null : () => setState(() => _step = 0),
                   icon: const Icon(Icons.arrow_back_rounded),
                   label: const Text('Regresar'),
                   style: OutlinedButton.styleFrom(
@@ -360,9 +357,7 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
                 Expanded(
                   child: PrimaryButton(
                     label: 'Guardar',
-                    onPressed: _isSaving
-                        ? null
-                        : () => _finish(skipped: false),
+                    onPressed: _isSaving ? null : () => _finish(skipped: false),
                   ),
                 ),
               ],

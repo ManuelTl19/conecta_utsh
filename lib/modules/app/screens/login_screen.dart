@@ -11,7 +11,7 @@ import 'package:conecta_utsh/modules/app/components/app_text_field.dart';
 import 'package:conecta_utsh/modules/app/components/primary_button.dart';
 import 'package:conecta_utsh/modules/app/components/theme_toggle_button.dart';
 import 'package:conecta_utsh/modules/app/models/login_model.dart';
-import 'package:conecta_utsh/modules/app/screens/home_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/dashboard_screen.dart';
 import 'package:conecta_utsh/modules/app/screens/register_screen.dart';
 import 'package:conecta_utsh/modules/app/screens/user_preferences_screen.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
@@ -84,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
       AppSettings.loginDate = DateTime.now().toIso8601String();
       final destination =
           await const UserPreferencesService().hasSeen(response.user.id)
-          ? HomeScreen(user: response.user, authService: _authService)
+          ? DashboardScreen(user: response.user, authService: _authService)
           : UserPreferencesScreen(
               user: response.user,
               authService: _authService,

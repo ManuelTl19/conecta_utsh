@@ -98,7 +98,8 @@ void main() {
     await tester.tap(find.text('Guardar'));
     await tester.pumpAndSettle();
 
-    expect(find.text('¡Hola, Ana!'), findsOneWidget);
+    expect(find.text('¡Bienvenido de nuevo!'), findsOneWidget);
+    expect(find.text('Ana'), findsOneWidget);
     expect(await service.getStatus(user.id), 'completado');
     expect(await service.hasSeen(user.id), isTrue);
     final saved = await service.getPreferences(user.id);
@@ -146,7 +147,8 @@ void main() {
     await tester.tap(find.text('Omitir'));
     await tester.pumpAndSettle();
 
-    expect(find.text('¡Hola, Luis!'), findsOneWidget);
+    expect(find.text('¡Bienvenido de nuevo!'), findsOneWidget);
+    expect(find.text('Luis'), findsOneWidget);
     expect(await service.getStatus(user.id), 'omitido');
     final saved = await service.getPreferences(user.id);
     expect(saved?.academicLevel, 'TSU');

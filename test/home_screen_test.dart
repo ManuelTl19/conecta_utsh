@@ -53,8 +53,11 @@ void main() {
 
     await tester.tap(find.text('Abrir inicio'));
     await tester.pumpAndSettle();
-    expect(find.text('¡Hola, Juan!'), findsOneWidget);
+    expect(find.text('¡Bienvenido de nuevo!'), findsOneWidget);
+    expect(find.text('Juan'), findsOneWidget);
 
+    await tester.tap(find.byTooltip('Abrir menú'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Cerrar sesión'));
     await tester.pumpAndSettle();
 
