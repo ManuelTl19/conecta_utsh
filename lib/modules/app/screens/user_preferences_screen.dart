@@ -322,7 +322,6 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> {
               children: [
                 TextButton.icon(
                   onPressed: _isSaving ? null : () => _finish(skipped: true),
-                  icon: const Icon(Icons.skip_next_rounded),
                   label: const Text('Omitir'),
                   style: TextButton.styleFrom(
                     foregroundColor: Style.getObscureTextColor(),

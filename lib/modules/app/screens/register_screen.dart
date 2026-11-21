@@ -26,8 +26,11 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  static final _namePattern = RegExp(r'^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+$');
+  static final _namePattern = RegExp(
+    r'^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?: [A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*$',
+  );
   static final _nameCharacters = RegExp(r'[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]');
+  static final _repeatedSpaces = RegExp(r' {2,}');
   static final _emailPattern = RegExp(
     r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
   );
@@ -125,9 +128,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       await _authService.register(
         RegisterModel(
-          firstName: _firstNameController.text.trim(),
-          paternalSurname: _paternalSurnameController.text.trim(),
-          maternalSurname: _maternalSurnameController.text.trim(),
+          firstName: _normalizePersonName(_firstNameController.text),
+          paternalSurname: _normalizePersonName(
+            _paternalSurnameController.text,
+          ),
+          maternalSurname: _normalizePersonName(
+            _maternalSurnameController.text,
+          ),
           enrollment: _enrollmentController.text.trim(),
           direction: direction,
           career: career,
@@ -147,7 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         success: true,
       );
       if (!mounted) return;
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(_emailController.text.trim());
     } on AuthApiException catch (error) {
       if (mounted) {
         await _showMessage(error.message, title: 'No se pudo registrar');
@@ -202,7 +209,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   );
 
   String? _validatePersonName(String? value, String field) {
-    final name = value?.trim() ?? '';
+    final name = _normalizePersonName(value ?? '');
     if (name.isEmpty) return 'Ingresa $field';
     if (name.replaceAll(' ', '').length < 3) {
       return 'Escribe al menos 3 letras';
@@ -212,6 +219,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     return null;
   }
+
+  String _normalizePersonName(String value) =>
+      value.trim().replaceAll(_repeatedSpaces, ' ');
 
   @override
   Widget build(BuildContext context) {
@@ -323,6 +333,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       hint: 'Inserta nombre(s)',
       inputFormatters: [
         FilteringTextInputFormatter.allow(_nameCharacters),
+        _SingleSpaceFormatter(),
         LengthLimitingTextInputFormatter(50),
       ],
       validator: (value) => _validatePersonName(value, 'tu nombre'),
@@ -335,6 +346,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       hint: 'Inserta apellido paterno',
       inputFormatters: [
         FilteringTextInputFormatter.allow(_nameCharacters),
+        _SingleSpaceFormatter(),
         LengthLimitingTextInputFormatter(50),
       ],
       validator: (value) => _validatePersonName(value, 'tu apellido paterno'),
@@ -347,6 +359,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       hint: 'Inserta apellido materno',
       inputFormatters: [
         FilteringTextInputFormatter.allow(_nameCharacters),
+        _SingleSpaceFormatter(),
         LengthLimitingTextInputFormatter(50),
       ],
       validator: (value) => _validatePersonName(value, 'tu apellido materno'),
@@ -514,7 +527,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       validator: (value) {
         final password = value?.trim() ?? '';
         if (password.isEmpty) return 'Ingresa tu contraseña';
-        if (password.length < 8) return 'Usa al menos 8 caracteres';
+        if (password.runes.length < 8) return 'Usa al menos 8 caracteres';
+        if (!RegExp(r'[A-ZÁÉÍÓÚÜÑ]').hasMatch(password)) {
+          return 'Incluye al menos una letra mayúscula';
+        }
+        if (!RegExp(r'\d').hasMatch(password)) {
+          return 'Incluye al menos un número';
+        }
+        if (!RegExp(r'[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9\s]').hasMatch(password)) {
+          return 'Incluye al menos un carácter especial';
+        }
         return null;
       },
       suffixIcon: IconButton(
@@ -563,6 +585,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     ),
   ];
+}
+
+class _SingleSpaceFormatter extends TextInputFormatter {
+  static final _repeatedSpaces = RegExp(r' {2,}');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final normalizedText = newValue.text.replaceAll(_repeatedSpaces, ' ');
+    if (normalizedText == newValue.text) return newValue;
+
+    // Caso común: el usuario tecleó un espacio justo después de otro.
+    // Ignoramos la edición y conservamos el estado anterior.
+    if (normalizedText == oldValue.text) return oldValue;
+
+    // Caso general (pegado de texto, etc.)
+    int normalizeOffset(int offset) {
+      if (offset < 0) return 0;
+      final bounded = offset.clamp(0, newValue.text.length).toInt();
+      return newValue.text
+          .substring(0, bounded)
+          .replaceAll(_repeatedSpaces, ' ')
+          .length;
+    }
+
+    return TextEditingValue(
+      text: normalizedText,
+      selection: TextSelection(
+        baseOffset: normalizeOffset(newValue.selection.baseOffset),
+        extentOffset: normalizeOffset(newValue.selection.extentOffset),
+        affinity: newValue.selection.affinity,
+        isDirectional: newValue.selection.isDirectional,
+      ),
+      // Sin composing: es un cambio mayor (pegado), no una tecla.
+    );
+  }
 }
 
 class _RegisterHeader extends StatelessWidget {

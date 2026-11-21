@@ -1,8 +1,13 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart' as ui;
 import 'package:resize/resize.dart';
 
 import 'package:conecta_utsh/modules/app/screens/login_screen.dart';
+import 'package:conecta_utsh/modules/app/services/auth_service.dart';
 
 void main() {
   Future<void> dismissAlert(WidgetTester tester) async {
@@ -27,7 +32,9 @@ void main() {
     await tester.ensureVisible(career);
     await tester.tap(career);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ingeniería en Desarrollo y Gestión de Software'));
+    await tester.tap(
+      find.text('Ingeniería en Desarrollo y Gestión de Software'),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(ui.DropdownButtonFormField<int>), findsOneWidget);
 
@@ -72,12 +79,7 @@ void main() {
     expect(find.text('Acceso'), findsOneWidget);
     expect(find.text('Correo electrónico'), findsNothing);
 
-    final personalValues = [
-      'Ana',
-      'López',
-      'Pérez',
-      '12345678',
-    ];
+    final personalValues = ['Ana', 'López', 'Pérez', '12345678'];
     for (var index = 0; index < personalValues.length; index++) {
       final field = find.byType(ui.TextFormField).at(index);
       await tester.ensureVisible(field);
@@ -111,12 +113,21 @@ void main() {
     expect(find.text('Faltan datos'), findsOneWidget);
     await dismissAlert(tester);
 
-    final personalValues = [
-      'A1na',
-      'López 123',
-      'Pérez',
-      '1234abcd',
-    ];
+    await tester.enterText(firstName, 'Ana    López');
+    expect(
+      tester.widget<ui.TextFormField>(firstName).controller!.text,
+      'Ana López',
+    );
+    expect(
+      tester
+          .widget<ui.TextFormField>(firstName)
+          .controller!
+          .selection
+          .baseOffset,
+      9,
+    );
+
+    final personalValues = ['A1na', 'López 123', 'Pérez', '1234abcd'];
     for (var index = 0; index < personalValues.length; index++) {
       final field = find.byType(ui.TextFormField).at(index);
       await tester.ensureVisible(field);
@@ -204,12 +215,122 @@ void main() {
     await tester.ensureVisible(password);
     await tester.enterText(password, 'Password1');
     await tester.ensureVisible(confirmation);
-    await tester.enterText(confirmation, 'Password2');
+    await tester.enterText(confirmation, 'Password1');
+    submitButton = find.text('Registrarse').last;
+    await tester.ensureVisible(submitButton);
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Incluye al menos un carácter especial'), findsOneWidget);
+    await dismissAlert(tester);
+
+    await tester.ensureVisible(password);
+    await tester.enterText(password, 'password1!');
+    await tester.ensureVisible(confirmation);
+    await tester.enterText(confirmation, 'password1!');
+    submitButton = find.text('Registrarse').last;
+    await tester.ensureVisible(submitButton);
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Incluye al menos una letra mayúscula'), findsOneWidget);
+    await dismissAlert(tester);
+
+    await tester.ensureVisible(password);
+    await tester.enterText(password, 'Password!!');
+    await tester.ensureVisible(confirmation);
+    await tester.enterText(confirmation, 'Password!!');
+    submitButton = find.text('Registrarse').last;
+    await tester.ensureVisible(submitButton);
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Incluye al menos un número'), findsOneWidget);
+    await dismissAlert(tester);
+
+    await tester.ensureVisible(password);
+    await tester.enterText(password, 'Password1!');
+    await tester.ensureVisible(confirmation);
+    await tester.enterText(confirmation, 'Password2!');
     submitButton = find.text('Registrarse').last;
     await tester.ensureVisible(submitButton);
     await tester.tap(submitButton);
     await tester.pumpAndSettle();
     expect(find.text('Las contraseñas no coinciden'), findsOneWidget);
     await dismissAlert(tester);
+  });
+
+  testWidgets('successful registration returns to login with email filled', (
+    tester,
+  ) async {
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const ui.Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final registrationBody = Completer<Map<String, dynamic>>();
+    server.listen((request) async {
+      final body = jsonDecode(
+        await utf8.decoder.bind(request).join(),
+      ) as Map<String, dynamic>;
+      registrationBody.complete(body);
+      request.response.statusCode = HttpStatus.created;
+      await request.response.close();
+    });
+    final authService = AuthService(
+      registerEndpoint: Uri.parse('http://127.0.0.1:${server.port}/register'),
+    );
+    addTearDown(() async {
+      authService.close();
+      await server.close(force: true);
+    });
+
+    await tester.pumpWidget(
+      Resize(
+        builder: () =>
+            ui.MaterialApp(home: LoginScreen(authService: authService)),
+      ),
+    );
+    await tester.tap(find.text('Crear cuenta'));
+    await tester.pumpAndSettle();
+
+    final personalValues = ['Ana', 'López    García', 'Pérez', '12345678'];
+    for (var index = 0; index < personalValues.length; index++) {
+      final field = find.byType(ui.TextFormField).at(index);
+      await tester.ensureVisible(field);
+      await tester.enterText(field, personalValues[index]);
+    }
+    await selectEducationData(tester);
+    await tester.ensureVisible(find.text('Continuar'));
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+
+    final accountValues = [
+      'ana@example.com',
+      '7711234567',
+      'Password1!',
+      'Password1!',
+    ];
+    for (var index = 0; index < accountValues.length; index++) {
+      final field = find.byType(ui.TextFormField).at(index);
+      await tester.ensureVisible(field);
+      await tester.enterText(field, accountValues[index]);
+    }
+    await tester.ensureVisible(find.text('Registrarse').last);
+    await tester.tap(find.text('Registrarse').last);
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 2300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Iniciar sesión'), findsOneWidget);
+    final loginFields = find.byType(ui.TextFormField);
+    expect(
+      tester.widget<ui.TextFormField>(loginFields.at(0)).controller!.text,
+      'ana@example.com',
+    );
+    expect(
+      tester.widget<ui.TextFormField>(loginFields.at(1)).controller!.text,
+      isEmpty,
+    );
+    expect((await registrationBody.future)['apellidoPaterno'], 'López García');
   });
 }

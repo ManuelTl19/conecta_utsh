@@ -43,6 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isSavingTheme = false;
   bool _isSubmitting = false;
+  bool _hasAutofilledRegisteredEmail = false;
 
   AuthService get _authService =>
       widget.authService ?? (_ownedAuthService ??= AuthService());
@@ -133,17 +134,22 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _createAccount() {
+  Future<void> _createAccount() async {
     final onCreateAccount = widget.onCreateAccount;
     if (onCreateAccount != null) {
       onCreateAccount();
       return;
     }
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
+    final registeredEmail = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
         builder: (_) => RegisterScreen(authService: _authService),
       ),
     );
+    if (!mounted || registeredEmail == null || _hasAutofilledRegisteredEmail) {
+      return;
+    }
+    _emailController.text = registeredEmail;
+    _hasAutofilledRegisteredEmail = true;
   }
 
   Future<void> _toggleTheme() async {
