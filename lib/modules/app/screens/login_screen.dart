@@ -1,15 +1,23 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:conecta_utsh/helpers/providers/app_settings.dart';
 import 'package:conecta_utsh/helpers/style.dart';
 import 'package:conecta_utsh/modules/app/components/app_text_field.dart';
 import 'package:conecta_utsh/modules/app/components/primary_button.dart';
+import 'package:conecta_utsh/modules/app/components/theme_toggle_button.dart';
 import 'package:conecta_utsh/modules/app/models/login_model.dart';
+import 'package:conecta_utsh/modules/app/screens/home_screen.dart';
 import 'package:conecta_utsh/modules/app/screens/register_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/user_preferences_screen.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
+import 'package:conecta_utsh/modules/app/services/token_store.dart';
+import 'package:conecta_utsh/modules/app/services/user_preferences_service.dart';
+import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
@@ -19,7 +27,7 @@ class LoginScreen extends StatefulWidget {
     super.key,
   });
 
-  final void Function(String enrollment, String password)? onSubmit;
+  final void Function(String email, String password)? onSubmit;
   final VoidCallback? onCreateAccount;
   final AuthService? authService;
 
@@ -29,59 +37,96 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _enrollmentController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  AuthService? _ownedAuthService;
   bool _obscurePassword = true;
   bool _isSavingTheme = false;
   bool _isSubmitting = false;
 
+  AuthService get _authService =>
+      widget.authService ?? (_ownedAuthService ??= AuthService());
+
   @override
   void dispose() {
-    _enrollmentController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
+    _ownedAuthService?.close();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    final onSubmit = widget.onSubmit;
-    if (onSubmit != null) {
-      onSubmit(_enrollmentController.text.trim(), _passwordController.text);
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      await _showMessage(
+        'Revisa tu correo y contraseña e intenta de nuevo.',
+        title: 'Faltan datos',
+      );
       return;
     }
 
-    final service = widget.authService;
-    if (service == null) {
-      _showMessage('La autenticación aún no está configurada.');
+    final onSubmit = widget.onSubmit;
+    if (onSubmit != null) {
+      onSubmit(_emailController.text.trim(), _passwordController.text.trim());
       return;
     }
 
     setState(() => _isSubmitting = true);
     try {
-      await service.login(
+      final response = await _authService.login(
         LoginModel(
-          enrollment: _enrollmentController.text.trim(),
-          password: _passwordController.text,
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
         ),
       );
       if (!mounted) return;
       AppSettings.isSignedIn = true;
       AppSettings.loginDate = DateTime.now().toIso8601String();
-      _showMessage('Sesión iniciada correctamente.');
+      final destination =
+          await const UserPreferencesService().hasSeen(response.user.id)
+          ? HomeScreen(user: response.user, authService: _authService)
+          : UserPreferencesScreen(
+              user: response.user,
+              authService: _authService,
+            );
+      if (!mounted) return;
+      Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => destination));
     } on AuthApiException catch (error) {
-      if (mounted) _showMessage(error.message);
+      if (mounted) {
+        await _showMessage(error.message, title: 'No se pudo iniciar sesión');
+      }
+    } on TokenStorageException catch (error) {
+      if (mounted) {
+        await _showMessage(error.message, title: 'No se pudo iniciar sesión');
+      }
+    } on StateError catch (error) {
+      if (mounted) {
+        await _showMessage(
+          error.message.toString(),
+          title: 'No se pudo iniciar sesión',
+        );
+      }
     } on SocketException {
       if (mounted) {
-        _showMessage('No fue posible conectar con el servidor.');
+        await _showMessage(
+          'No fue posible conectar con el servidor.',
+          title: 'Error de conexión',
+        );
       }
     } on FormatException catch (error) {
-      if (mounted) _showMessage(error.message);
+      if (mounted) {
+        await _showMessage(error.message, title: 'Respuesta no válida');
+      }
     } on HttpException catch (error) {
-      if (mounted) _showMessage(error.message);
+      if (mounted) {
+        await _showMessage(error.message, title: 'No se pudo iniciar sesión');
+      }
     } on TimeoutException {
       if (mounted) {
-        _showMessage('La solicitud tardó demasiado. Inténtalo otra vez.');
+        await _showMessage(
+          'La solicitud tardó demasiado. Inténtalo otra vez.',
+          title: 'Tiempo de espera agotado',
+        );
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -96,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => RegisterScreen(authService: widget.authService),
+        builder: (_) => RegisterScreen(authService: _authService),
       ),
     );
   }
@@ -107,16 +152,28 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final saved = await AppSettings().changeTheme();
       if (!mounted) return;
-      if (!saved) _showMessage('No se pudo guardar el tema.');
+      if (!saved) {
+        await _showMessage(
+          'No se pudo guardar el tema.',
+          title: 'No se pudo cambiar el tema',
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSavingTheme = false);
     }
   }
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
+  Future<void> _showMessage(
+    String message, {
+    String title = 'Ocurrió un error',
+  }) => Dialogs.showSimpleDialog(
+    context,
+    title: title,
+    message: message,
+    icon: Icons.error_outline_rounded,
+    color: Style.getErrorColor(),
+    duration: 2200,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -126,9 +183,10 @@ class _LoginScreenState extends State<LoginScreen> {
         top: false,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final headerHeight = (constraints.maxHeight * .31)
-                .clamp(210.0, 270.0)
-                .toDouble();
+            final statusBar = MediaQuery.paddingOf(context).top;
+            final headerHeight =
+                statusBar +
+                (constraints.maxHeight * .30).clamp(250.0, 320.0).toDouble();
             return Column(
               children: [
                 SizedBox(
@@ -148,6 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       key: _formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: 16,
                         children: [
                           Text(
                             'Iniciar sesión',
@@ -158,23 +217,39 @@ class _LoginScreenState extends State<LoginScreen> {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 22),
+                          SizedBox(height: 8),
                           AppTextField(
-                            controller: _enrollmentController,
-                            hint: 'Inserta tu matrícula',
+                            controller: _emailController,
+                            label: 'Correo electrónico',
+                            hint: 'Inserta tu correo electrónico',
+                            keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
-                            validator: (value) =>
-                                value == null || value.trim().isEmpty
-                                ? 'Ingresa tu matrícula'
-                                : null,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(100),
+                            ],
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Ingresa tu correo electrónico';
+                              }
+                              if (!RegExp(
+                                r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+                              ).hasMatch(value.trim())) {
+                                return 'Ingresa un correo válido';
+                              }
+                              return null;
+                            },
                           ),
-                          const SizedBox(height: 18),
                           AppTextField(
                             controller: _passwordController,
+                            label: 'Contraseña',
                             hint: 'Inserta tu contraseña',
                             obscureText: _obscurePassword,
                             textInputAction: TextInputAction.done,
-                            validator: (value) => value == null || value.isEmpty
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(128),
+                            ],
+                            validator: (value) =>
+                                value == null || value.trim().isEmpty
                                 ? 'Ingresa tu contraseña'
                                 : null,
                             suffixIcon: IconButton(
@@ -193,14 +268,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          // Cambiar a "Iniciar sesión" cuando el flujo final
-                          // confirme que el botón autentica y no registra.
+                          const SizedBox(height: 8),
                           PrimaryButton(
                             label: 'Iniciar sesión',
                             onPressed: _isSubmitting ? null : _submit,
                           ),
-                          const SizedBox(height: 18),
                           Wrap(
                             alignment: WrapAlignment.center,
                             crossAxisAlignment: WrapCrossAlignment.center,
@@ -259,49 +331,69 @@ class _LoginHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+    return ClipPath(
+      clipper: const _CircleBottomClipper(curveHeight: 30),
       child: Container(
         color: Style.getPrimaryColor(),
         child: Stack(
           children: [
             Positioned(
               top: 16,
-              left: 44,
-              child: _HeaderIcon(icon: Icons.circle, size: 20),
+              left: 36,
+              child: _HeaderIcon(
+                icon: Icons.school_outlined, // escuela
+                size: 74,
+                angleDegrees: -18,
+              ),
             ),
             Positioned(
-              top: 52,
-              left: 102,
-              child: _HeaderIcon(icon: Icons.circle, size: 26),
+              top: 62,
+              left: 118,
+              child: _HeaderIcon(
+                icon: Icons.handshake_outlined, // vinculación
+                size: 62,
+                angleDegrees: 14,
+              ),
             ),
             Positioned(
-              top: 52,
-              left: 160,
-              child: _HeaderIcon(icon: Icons.circle, size: 26),
+              top: 120,
+              left: 38,
+              child: _HeaderIcon(
+                icon: Icons.assignment_turned_in_outlined,
+                size: 78,
+                angleDegrees: 22,
+              ),
             ),
             Positioned(
-              top: 16,
-              right: 45,
-              child: _HeaderIcon(icon: Icons.circle, size: 20),
+              top: 150,
+              right: 88,
+              child: _HeaderIcon(
+                icon: Icons.badge_outlined,
+                size: 78,
+                angleDegrees: 22,
+              ),
+            ),
+            Positioned(
+              top: 44,
+              right: 38,
+              child: _HeaderIcon(
+                icon: Icons.business_outlined,
+                size: 78,
+                angleDegrees: -12,
+              ),
             ),
             Positioned(
               right: 20,
               top: MediaQuery.paddingOf(context).top + 10,
-              child: _HeaderActionButton(
-                tooltip: Style.isDarkModeOn
-                    ? 'Cambiar a modo claro'
-                    : 'Cambiar a modo oscuro',
-                onPressed: isSavingTheme ? null : onToggleTheme,
-                icon: Style.isDarkModeOn
-                    ? Icons.light_mode_outlined
-                    : Icons.dark_mode_outlined,
+              child: ThemeToggleButton(
+                onPressed: onToggleTheme,
+                isSaving: isSavingTheme,
               ),
             ),
             Positioned(
               left: 20,
               right: 20,
-              bottom: 26,
+              bottom: 80,
               child: Column(
                 children: [
                   Text(
@@ -332,44 +424,60 @@ class _LoginHeader extends StatelessWidget {
   }
 }
 
-class _HeaderActionButton extends StatelessWidget {
-  const _HeaderActionButton({
-    required this.tooltip,
-    required this.onPressed,
-    required this.icon,
-  });
+class _CircleBottomClipper extends CustomClipper<Path> {
+  const _CircleBottomClipper({this.curveHeight = 40});
 
-  final String tooltip;
-  final VoidCallback? onPressed;
-  final IconData icon;
+  /// Qué tanto se curva el borde inferior (la "flecha" del arco).
+  final double curveHeight;
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Style.getCardColor(),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: IconButton(
-        tooltip: tooltip,
-        onPressed: onPressed,
-        icon: Icon(icon, color: Style.getPrimaryColor(), size: 19),
-      ),
-    );
+  Path getClip(Size size) {
+    final w = size.width;
+    final s = curveHeight;
+
+    // Radio del círculo cuyo arco tiene cuerda w y altura s
+    final radius = (w * w / 4 + s * s) / (2 * s);
+
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(0, size.height - s)
+      ..arcToPoint(
+        Offset(w, size.height - s),
+        radius: Radius.circular(radius),
+        clockwise: false, // el arco abulta hacia abajo
+      )
+      ..lineTo(w, 0)
+      ..close();
+
+    return path;
   }
+
+  @override
+  bool shouldReclip(covariant _CircleBottomClipper oldClipper) =>
+      oldClipper.curveHeight != curveHeight;
 }
 
 class _HeaderIcon extends StatelessWidget {
-  const _HeaderIcon({required this.icon, required this.size});
+  const _HeaderIcon({
+    required this.icon,
+    required this.size,
+    this.angleDegrees = 0,
+  });
 
   final IconData icon;
   final double size;
+  final double angleDegrees;
 
   @override
   Widget build(BuildContext context) {
     return ExcludeSemantics(
-      child: Icon(
-        icon,
-        size: size,
-        color: Style.getInverseTextColor().withValues(alpha: .08),
+      child: Transform.rotate(
+        angle: angleDegrees * (math.pi / 180), // Convierte grados a radianes
+        child: Icon(
+          icon,
+          size: size,
+          color: Style.getInverseTextColor().withValues(alpha: .08),
+        ),
       ),
     );
   }

@@ -1,26 +1,56 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:conecta_utsh/helpers/apis.dart';
 import 'package:conecta_utsh/modules/app/models/login_model.dart';
+import 'package:conecta_utsh/modules/app/models/login_response_model.dart';
 import 'package:conecta_utsh/modules/app/models/register_model.dart';
+import 'package:conecta_utsh/modules/app/services/token_store.dart';
 
 class AuthService {
   AuthService({
-    required this.loginEndpoint,
-    required this.registerEndpoint,
+    this.loginEndpoint,
+    this.registerEndpoint,
     HttpClient? client,
-  }) : _client = client ?? HttpClient();
+    TokenStore? tokenStore,
+  }) : _client = client ?? HttpClient(),
+       _tokenStore = tokenStore ?? SecureTokenStore();
 
-  final Uri loginEndpoint;
-  final Uri registerEndpoint;
+  final Uri? loginEndpoint;
+  final Uri? registerEndpoint;
   final HttpClient _client;
+  final TokenStore _tokenStore;
 
-  Future<void> login(LoginModel model) => _post(loginEndpoint, model.toJson());
+  Uri get _loginUri => loginEndpoint ?? Apis.login;
+  Uri get _registerUri => registerEndpoint ?? Apis.register;
 
-  Future<void> register(RegisterModel model) =>
-      _post(registerEndpoint, model.toJson());
+  Future<LoginResponseModel> login(LoginModel model) async {
+    final responseBody = await _post(_loginUri, model.toJson());
+    final decoded = jsonDecode(responseBody);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('La respuesta de inicio no es válida.');
+    }
 
-  Future<void> _post(Uri endpoint, Map<String, dynamic> body) async {
+    final response = LoginResponseModel.fromJson(decoded);
+    await _tokenStore.save(response.token);
+    return response;
+  }
+
+  Future<void> register(RegisterModel model) async {
+    await _post(_registerUri, model.toJson());
+  }
+
+  Future<Map<String, String>> authorizationHeaders() async {
+    final token = await _tokenStore.read();
+    if (token == null || token.isEmpty) {
+      throw StateError('No hay una sesión activa para esta solicitud.');
+    }
+    return {HttpHeaders.authorizationHeader: 'Bearer $token'};
+  }
+
+  Future<void> logout() => _tokenStore.clear();
+
+  Future<String> _post(Uri endpoint, Map<String, dynamic> body) async {
     final request = await _client
         .postUrl(endpoint)
         .timeout(const Duration(seconds: 15));
@@ -50,6 +80,8 @@ class AuthService {
         message: message ?? response.reasonPhrase,
       );
     }
+
+    return responseBody;
   }
 
   void close() => _client.close();

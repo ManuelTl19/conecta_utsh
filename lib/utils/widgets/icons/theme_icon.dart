@@ -1,5 +1,6 @@
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:conecta_utsh/helpers/helpers.dart';
+import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 
 class ThemeIcon extends StatefulWidget {
   final double size;
@@ -18,8 +19,13 @@ class _ThemeIconState extends State<ThemeIcon> {
         onTap: () async {
           final saved = await value.changeTheme();
           if (!saved && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No se pudo guardar el tema.')),
+            await Dialogs.showSimpleDialog(
+              context,
+              title: 'No se pudo cambiar el tema',
+              message: 'No se pudo guardar el tema.',
+              icon: Icons.error_outline_rounded,
+              color: Style.getErrorColor(),
+              duration: 2200,
             );
           }
         },

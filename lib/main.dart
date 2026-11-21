@@ -32,7 +32,7 @@ class MainApp extends StatelessWidget {
               colorScheme: ColorScheme.fromSeed(
                 seedColor: Style.getPrimaryColor(),
               ),
-              fontFamily: GoogleFonts.poppins().fontFamily,
+              fontFamily: GoogleFonts.outfit().fontFamily,
               scaffoldBackgroundColor: Style.getBackgroundColor(),
             ),
             darkTheme: ThemeData(
@@ -41,7 +41,7 @@ class MainApp extends StatelessWidget {
                 seedColor: Style.getPrimaryColor(),
                 brightness: Brightness.dark,
               ),
-              fontFamily: GoogleFonts.poppins().fontFamily,
+              fontFamily: GoogleFonts.outfit().fontFamily,
               scaffoldBackgroundColor: Style.getBackgroundColor(),
             ),
             home: const SplashScreen(),

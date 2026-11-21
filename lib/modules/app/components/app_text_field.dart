@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:conecta_utsh/helpers/style.dart';
@@ -12,6 +13,7 @@ class AppTextField extends StatelessWidget {
     this.textInputAction,
     this.keyboardType,
     this.suffixIcon,
+    this.inputFormatters,
     super.key,
   });
 
@@ -23,6 +25,7 @@ class AppTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final TextInputType? keyboardType;
   final Widget? suffixIcon;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +34,7 @@ class AppTextField extends StatelessWidget {
       obscureText: obscureText,
       textInputAction: textInputAction,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       validator: validator,
       style: Style.getTextStyle(color: Style.getTextColor(), fontSize: 12),
       decoration: InputDecoration(
@@ -45,30 +49,30 @@ class AppTextField extends StatelessWidget {
           fontSize: 12,
         ),
         filled: true,
-        fillColor: Style.getSubtleColor(),
+        fillColor: Style.getCardColor(),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 15,
         ),
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: Style.getSubtleColor(), width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(color: Style.getPrimaryColor(), width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(color: Style.getErrorColor()),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide(color: Style.getErrorColor(), width: 1.5),
         ),
       ),

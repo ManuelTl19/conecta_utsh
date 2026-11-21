@@ -129,7 +129,7 @@ class Style {
     TextDecoration? decoration,
   }) => TextStyle(
     color: color ?? getPrimaryColor(),
-    fontFamily: GoogleFonts.poppins().fontFamily,
+    fontFamily: GoogleFonts.outfit().fontFamily,
     fontSize: fontSize.sp,
     fontWeight: fontWeight,
     decoration: decoration,
@@ -143,7 +143,7 @@ class Style {
     TextDecoration? decoration,
   }) => TextStyle(
     color: color ?? getPrimaryColor(),
-    fontFamily: GoogleFonts.poppins().fontFamily,
+    fontFamily: GoogleFonts.outfit().fontFamily,
     fontSize: fontSize.sp,
     fontWeight: fontWeight,
     decoration: decoration,
@@ -157,7 +157,7 @@ class Style {
     TextDecoration? decoration,
   }) => TextStyle(
     color: color ?? getSecondaryColor(),
-    fontFamily: GoogleFonts.poppins().fontFamily,
+    fontFamily: GoogleFonts.dmSans().fontFamily,
     fontSize: fontSize.sp,
     fontWeight: fontWeight,
     decoration: decoration,

@@ -1,11 +1,8 @@
 class LoginModel {
-  const LoginModel({required this.enrollment, required this.password});
+  const LoginModel({required this.email, required this.password});
 
-  final String enrollment;
+  final String email;
   final String password;
 
-  Map<String, dynamic> toJson() => {
-    'enrollment': enrollment,
-    'password': password,
-  };
+  Map<String, dynamic> toJson() => {'correo': email, 'password': password};
 }

@@ -5,7 +5,7 @@ import 'package:lottie/lottie.dart';
 
 class Dialogs {
   // Function to show a simple dialog
-  static showSimpleDialog(
+  static Future<void> showSimpleDialog(
     BuildContext context, {
     required String title,
     required String message,
@@ -14,23 +14,28 @@ class Dialogs {
     required Color color,
     int duration = 1500,
   }) async {
-    showDialog(
+    late BuildContext dialogContext;
+    final dialog = showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => DialogAnimation(
-        content: SimpleDialogContent(
-          title: title,
-          message: message,
-          svg: svg ?? '',
-          icon: icon ?? Icons.info_outline_rounded,
-          color: color,
-        ),
-      ),
+      builder: (context) {
+        dialogContext = context;
+        return DialogAnimation(
+          content: SimpleDialogContent(
+            title: title,
+            message: message,
+            svg: svg ?? '',
+            icon: icon ?? Icons.info_outline_rounded,
+            color: color,
+          ),
+        );
+      },
     );
 
     Future.delayed(Duration(milliseconds: duration), () {
-      if (context.mounted) Navigator.of(context).pop(true);
+      if (dialogContext.mounted) Navigator.of(dialogContext).pop();
     });
+    await dialog;
   }
 
   static showLoader(BuildContext context, {String message = 'Cargando...'}) {

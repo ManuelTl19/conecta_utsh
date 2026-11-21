@@ -7,6 +7,7 @@ import 'package:conecta_utsh/helpers/providers/providers.dart';
 import 'package:conecta_utsh/helpers/style.dart';
 import 'package:conecta_utsh/modules/app/screens/login_screen.dart';
 import 'package:conecta_utsh/modules/app/components/primary_button.dart';
+import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -15,8 +16,13 @@ class WelcomeScreen extends StatelessWidget {
     final saved = await prefs.setBool(Constants.onboardingKey, true);
     if (!context.mounted) return;
     if (!saved) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo guardar el inicio.')),
+      await Dialogs.showSimpleDialog(
+        context,
+        title: 'No se pudo continuar',
+        message: 'No se pudo guardar el inicio.',
+        icon: Icons.error_outline_rounded,
+        color: Style.getErrorColor(),
+        duration: 2200,
       );
       return;
     }
