@@ -82,6 +82,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return;
     }
+    // Normaliza los espacios al terminar de editar, nunca durante cada tecla.
+    for (final controller in [
+      _firstNameController,
+      _paternalSurnameController,
+      _maternalSurnameController,
+    ]) {
+      final normalized = _normalizePersonName(controller.text);
+      if (normalized != controller.text) {
+        controller.value = TextEditingValue(
+          text: normalized,
+          selection: TextSelection.collapsed(offset: normalized.length),
+        );
+      }
+    }
     setState(() => _step = 1);
   }
 
@@ -335,7 +349,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       hint: 'Inserta nombre(s)',
       inputFormatters: [
         FilteringTextInputFormatter.allow(_nameCharacters),
-        _SingleSpaceFormatter(),
         LengthLimitingTextInputFormatter(50),
       ],
       validator: (value) => _validatePersonName(value, 'tu nombre'),
@@ -348,7 +361,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       hint: 'Inserta apellido paterno',
       inputFormatters: [
         FilteringTextInputFormatter.allow(_nameCharacters),
-        _SingleSpaceFormatter(),
         LengthLimitingTextInputFormatter(50),
       ],
       validator: (value) => _validatePersonName(value, 'tu apellido paterno'),
@@ -361,7 +373,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       hint: 'Inserta apellido materno',
       inputFormatters: [
         FilteringTextInputFormatter.allow(_nameCharacters),
-        _SingleSpaceFormatter(),
         LengthLimitingTextInputFormatter(50),
       ],
       validator: (value) => _validatePersonName(value, 'tu apellido materno'),
@@ -392,6 +403,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       key: const ValueKey('direccion-dropdown'),
       initialValue: _selectedDirection,
       decoration: _dropdownDecoration('Dirección', 'Selecciona un área'),
+      isExpanded: true,
       items: educationCatalog.keys
           .map(
             (direction) =>
@@ -437,6 +449,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ? 'Selecciona del 1 al 6'
               : 'Selecciona del 7 al 10',
         ),
+        isExpanded: true,
         items: cuatrimestresForCareer(_selectedCareer)
             .map(
               (semester) => DropdownMenuItem(
@@ -582,44 +595,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     ),
   ];
-}
-
-class _SingleSpaceFormatter extends TextInputFormatter {
-  static final _repeatedSpaces = RegExp(r' {2,}');
-
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final normalizedText = newValue.text.replaceAll(_repeatedSpaces, ' ');
-    if (normalizedText == newValue.text) return newValue;
-
-    // Caso común: el usuario tecleó un espacio justo después de otro.
-    // Ignoramos la edición y conservamos el estado anterior.
-    if (normalizedText == oldValue.text) return oldValue;
-
-    // Caso general (pegado de texto, etc.)
-    int normalizeOffset(int offset) {
-      if (offset < 0) return 0;
-      final bounded = offset.clamp(0, newValue.text.length).toInt();
-      return newValue.text
-          .substring(0, bounded)
-          .replaceAll(_repeatedSpaces, ' ')
-          .length;
-    }
-
-    return TextEditingValue(
-      text: normalizedText,
-      selection: TextSelection(
-        baseOffset: normalizeOffset(newValue.selection.baseOffset),
-        extentOffset: normalizeOffset(newValue.selection.extentOffset),
-        affinity: newValue.selection.affinity,
-        isDirectional: newValue.selection.isDirectional,
-      ),
-      // Sin composing: es un cambio mayor (pegado), no una tecla.
-    );
-  }
 }
 
 class _RegisterHeader extends StatelessWidget {
