@@ -8,12 +8,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/helpers/style.dart';
 import 'package:conecta_utsh/helpers/providers/app_settings.dart';
 import 'package:conecta_utsh/modules/app/components/app_text_field.dart';
+import 'package:conecta_utsh/modules/app/components/password_requirements_info.dart';
 import 'package:conecta_utsh/modules/app/components/primary_button.dart';
 import 'package:conecta_utsh/modules/app/components/step_indicator.dart';
 import 'package:conecta_utsh/modules/app/components/theme_toggle_button.dart';
 import 'package:conecta_utsh/modules/app/models/education_catalog.dart';
 import 'package:conecta_utsh/modules/app/models/register_model.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
+import 'package:conecta_utsh/modules/app/services/password_validator.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -524,31 +526,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
       obscureText: _obscurePassword,
       textInputAction: TextInputAction.next,
       inputFormatters: [LengthLimitingTextInputFormatter(128)],
-      validator: (value) {
-        final password = value?.trim() ?? '';
-        if (password.isEmpty) return 'Ingresa tu contraseña';
-        if (password.runes.length < 8) return 'Usa al menos 8 caracteres';
-        if (!RegExp(r'[A-ZÁÉÍÓÚÜÑ]').hasMatch(password)) {
-          return 'Incluye al menos una letra mayúscula';
-        }
-        if (!RegExp(r'\d').hasMatch(password)) {
-          return 'Incluye al menos un número';
-        }
-        if (!RegExp(r'[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9\s]').hasMatch(password)) {
-          return 'Incluye al menos un carácter especial';
-        }
-        return null;
-      },
-      suffixIcon: IconButton(
-        tooltip: _obscurePassword ? 'Mostrar contraseña' : 'Ocultar contraseña',
-        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-        icon: Icon(
-          _obscurePassword
-              ? Icons.visibility_off_outlined
-              : Icons.visibility_outlined,
-          color: Style.getIconColor(),
-          size: 20,
-        ),
+      validator: passwordValidationMessage,
+      suffixIcon: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const PasswordRequirementsInfo(),
+          IconButton(
+            tooltip: _obscurePassword
+                ? 'Mostrar contraseña'
+                : 'Ocultar contraseña',
+            onPressed: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
+            icon: Icon(
+              _obscurePassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              color: Style.getIconColor(),
+              size: 20,
+            ),
+          ),
+        ],
       ),
     ),
     const SizedBox(height: 12),

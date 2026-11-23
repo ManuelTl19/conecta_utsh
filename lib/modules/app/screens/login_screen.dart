@@ -11,10 +11,13 @@ import 'package:conecta_utsh/modules/app/components/app_text_field.dart';
 import 'package:conecta_utsh/modules/app/components/primary_button.dart';
 import 'package:conecta_utsh/modules/app/components/theme_toggle_button.dart';
 import 'package:conecta_utsh/modules/app/models/login_model.dart';
+import 'package:conecta_utsh/modules/app/screens/forgot_password_email_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/forgot_password_code_screen.dart';
 import 'package:conecta_utsh/modules/app/screens/dashboard_screen.dart';
 import 'package:conecta_utsh/modules/app/screens/register_screen.dart';
 import 'package:conecta_utsh/modules/app/screens/user_preferences_screen.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
+import 'package:conecta_utsh/modules/app/services/password_reset_state_store.dart';
 import 'package:conecta_utsh/modules/app/services/token_store.dart';
 import 'package:conecta_utsh/modules/app/services/user_preferences_service.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart';
@@ -24,12 +27,14 @@ class LoginScreen extends StatefulWidget {
     this.onSubmit,
     this.onCreateAccount,
     this.authService,
+    this.initialEmail = '',
     super.key,
   });
 
   final void Function(String email, String password)? onSubmit;
   final VoidCallback? onCreateAccount;
   final AuthService? authService;
+  final String initialEmail;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -47,6 +52,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   AuthService get _authService =>
       widget.authService ?? (_ownedAuthService ??= AuthService());
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.text = widget.initialEmail;
+  }
 
   @override
   void dispose() {
@@ -150,6 +161,42 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     _emailController.text = registeredEmail;
     _hasAutofilledRegisteredEmail = true;
+  }
+
+  Future<void> _forgotPassword() async {
+    final stateStore = PasswordResetStateStore();
+    try {
+      final activeState = await stateStore.readActive();
+      if (!mounted) return;
+      if (activeState != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ForgotPasswordCodeScreen(
+              authService: _authService,
+              state: activeState,
+              stateStore: stateStore,
+            ),
+          ),
+        );
+        return;
+      }
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ForgotPasswordEmailScreen(
+            authService: _authService,
+            initialEmail: _emailController.text.trim(),
+            stateStore: stateStore,
+          ),
+        ),
+      );
+    } on StateError catch (error) {
+      if (mounted) {
+        await _showMessage(
+          error.message.toString(),
+          title: 'No se pudo recuperar el estado',
+        );
+      }
+    }
   }
 
   Future<void> _toggleTheme() async {
@@ -278,6 +325,26 @@ class _LoginScreenState extends State<LoginScreen> {
                           PrimaryButton(
                             label: 'Iniciar sesión',
                             onPressed: _isSubmitting ? null : _submit,
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _forgotPassword,
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                foregroundColor: Style.getTextColor(),
+                              ),
+                              child: Text(
+                                '¿Olvidaste tu contraseña?',
+                                style: Style.getHeaderThree(
+                                  color: Style.getTextColor(),
+                                  fontSize: 10,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
                           ),
                           Wrap(
                             alignment: WrapAlignment.center,

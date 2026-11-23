@@ -100,6 +100,47 @@ class Dialogs {
     );
   }
 
+  static Future<void> showInfoDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required Color color,
+    IconData icon = Icons.info_outline_rounded,
+    String acceptText = 'Aceptar',
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => DialogAnimation(
+        content: ComplexDialogContent(
+          title: title,
+          message: message,
+          svg: '',
+          icon: icon,
+          color: color,
+          actions: [
+            Expanded(
+              child: TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                style: TextButton.styleFrom(
+                  backgroundColor: color,
+                  foregroundColor: Style.getInverseTextColor(),
+                  minimumSize: Size.fromHeight(46.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: Style.getOnlyBorderRadius(
+                      bottomLeft: 12,
+                      bottomRight: 12,
+                    ),
+                  ),
+                ),
+                child: Text(acceptText),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Function to show a confirmation dialog for deletion
   static Future<bool?> showConfirmDialogDelete(
     BuildContext context, {
