@@ -51,7 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late final DashboardController _dashboardController;
   late final PageController _pageController;
   bool _isShowingExitDialog = false;
-  
+
   @override
   void initState() {
     super.initState();

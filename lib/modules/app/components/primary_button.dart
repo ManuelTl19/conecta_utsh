@@ -6,11 +6,13 @@ class PrimaryButton extends StatelessWidget {
   const PrimaryButton({
     required this.label,
     required this.onPressed,
+    this.isLoading = false,
     super.key,
   });
 
   final String label;
   final VoidCallback? onPressed;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -30,14 +32,23 @@ class PrimaryButton extends StatelessWidget {
           ),
           elevation: 0,
         ),
-        child: Text(
-          label,
-          style: Style.getHeaderOne(
-            color: Style.getInverseTextColor(),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        child: isLoading
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Style.getInverseTextColor(),
+                ),
+              )
+            : Text(
+                label,
+                style: Style.getHeaderOne(
+                  color: Style.getInverseTextColor(),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
     );
   }

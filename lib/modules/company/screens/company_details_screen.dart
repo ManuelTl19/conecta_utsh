@@ -16,29 +16,42 @@ class CompanyDetailScreen extends StatefulWidget {
 }
 
 class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
-  static const Color _brandGreen = Color(0xFF0A7C1D);
-
   late bool _isSaved;
   int _selectedTabIndex = 1; // Inicia en "Requisitos" como en el diseño
 
-  final List<String> _tabs = const [
-    'Descripción',
-    'Requisitos',
-    'Acerca de',
-    'Reseñas',
+  final List<String> _tabs = const ['Descripción', 'Requisitos', 'Reseñas'];
+  static const _mockReviews = [
+    _CompanyReview(
+      name: 'Ana Martínez',
+      date: 'Hace 2 semanas',
+      rating: 5,
+      comment: 'El equipo fue muy amable durante el proceso y me explicó claramente las actividades.',
+    ),
+    _CompanyReview(
+      name: 'Carlos Hernández',
+      date: 'Hace 1 mes',
+      rating: 4,
+      comment: 'Buena oportunidad para aprender y colaborar en proyectos relacionados con mi carrera.',
+    ),
+    _CompanyReview(
+      name: 'Sofía Ramírez',
+      date: 'Hace 2 meses',
+      rating: 5,
+      comment: 'La experiencia fue positiva. Recomiendo conocer sus proyectos y postularse.',
+    ),
   ];
 
   @override
   void initState() {
     super.initState();
-    _isSaved = widget.company.isSaved;
+    _isSaved = widget.company.isFavorite;
   }
 
   void _toggleSave() {
     setState(() {
       _isSaved = !_isSaved;
     });
-    widget.onToggleSaved?.call(widget.company.copyWith(isSaved: _isSaved));
+    widget.onToggleSaved?.call(widget.company.copyWith(isFavorite: _isSaved));
   }
 
   @override
@@ -46,13 +59,10 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final company = widget.company;
-
-    // Construimos las 3 píldoras exactamente como en la imagen
-    final pills = <String>[
-      if (company.tags.isNotEmpty) company.tags.first else 'General',
-      company.employmentType,
-      company.level,
-    ];
+    final pills = <String>{
+      company.sector,
+      ...company.availableAreas.take(2),
+    }.where((label) => label.isNotEmpty).toList();
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -67,14 +77,12 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
             ),
             child: Container(
               width: double.infinity,
-              color: _brandGreen,
+              color: colors.primary,
               child: Stack(
                 children: [
                   // Patrón geométrico sutil de fondo
                   Positioned.fill(
-                    child: CustomPaint(
-                      painter: _DoodlePatternPainter(),
-                    ),
+                    child: CustomPaint(painter: _DoodlePatternPainter()),
                   ),
                   SafeArea(
                     bottom: false,
@@ -122,15 +130,14 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                                   : 'E',
                               style: theme.textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: _brandGreen,
+                                color: colors.primary,
                               ),
                             ),
                           ),
                           const SizedBox(height: 14),
 
-                          // Puesto y Empresa
                           Text(
-                            company.position,
+                            company.name,
                             textAlign: TextAlign.center,
                             style: theme.textTheme.titleLarge?.copyWith(
                               color: Colors.white,
@@ -148,7 +155,6 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // 3 Píldoras translúcidas (Tag, EmploymentType, Level)
                           Wrap(
                             spacing: 10,
                             runSpacing: 8,
@@ -161,17 +167,18 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                                       vertical: 7,
                                     ),
                                     decoration: BoxDecoration(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.16),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.16,
+                                      ),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
                                       label,
-                                      style:
-                                          theme.textTheme.labelMedium?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                     ),
                                   ),
                                 )
@@ -179,29 +186,41 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                           ),
                           const SizedBox(height: 22),
 
-                          // Fila inferior: Salario y Ubicación
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  '\$${company.salary.toStringAsFixed(2)}',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.star_rounded,
+                                      color: colors.onPrimary,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      company.totalReviews == 0
+                                          ? 'Sin reseñas aún'
+                                          : '${company.averageRating.toStringAsFixed(1)} · ${company.totalReviews} reseñas',
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(
+                                            color: colors.onPrimary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ],
                                 ),
                                 Flexible(
                                   child: Text(
-                                    company.location,
+                                    '${company.municipality}, ${company.state}',
                                     textAlign: TextAlign.right,
                                     overflow: TextOverflow.ellipsis,
-                                    style:
-                                        theme.textTheme.titleMedium?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                   ),
                                 ),
                               ],
@@ -217,7 +236,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
           ),
 
           // =========================================================
-          // 2. BARRA DE PESTAÑAS (Descripción, Requisitos, Acerca de, Reseñas)
+          // 2. BARRA DE PESTAÑAS (Descripción, Requisitos, Reseñas)
           // =========================================================
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
@@ -236,8 +255,9 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                     child: Text(
                       _tabs[index],
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
                         color: isSelected
                             ? colors.onSurface
                             : colors.onSurfaceVariant.withValues(alpha: 0.7),
@@ -271,7 +291,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                 height: 52,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: _brandGreen,
+                    backgroundColor: colors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -300,10 +320,9 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     switch (_selectedTabIndex) {
       case 0: // Descripción
         return Text(
-          'Buscamos talento para integrarse como ${company.position} en ${company.name} '
-          '(${company.location}). Modalidad ${company.employmentType} para perfil nivel '
-          '${company.level}, colaborando en proyectos clave con compensación de '
-          '${company.currency} \$${company.salary} / ${company.period}.',
+          company.description.isEmpty
+              ? 'No hay descripción disponible.'
+              : company.description,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: colors.onSurfaceVariant,
             height: 1.55,
@@ -311,14 +330,16 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
         );
 
       case 1: // Requisitos (Lista con viñetas como en la imagen)
-        final requisitos = [
-          'Formación o carrera afín en ${company.tags.isNotEmpty ? company.tags.join(", ") : "el área solicitada"}.',
-          'Conocimientos sólidos acordes al nivel ${company.level} en ${company.position}.',
-          'Capacidad para liderar y conceptualizar soluciones desde cero, aplicando buenas prácticas.',
-          'Habilidades de comunicación efectiva y trabajo colaborativo con equipos multidisciplinarios.',
-          'Excelente capacidad de resolución de problemas y adaptación a requerimientos técnicos.',
-          'Portafolio o evidencias de proyectos previos desarrollados.',
-        ];
+        final requisitos = company.requirements;
+
+        if (requisitos.isEmpty) {
+          return Text(
+            'No se especificaron requisitos.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          );
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,38 +373,147 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
               .toList(),
         );
 
-      case 2: // Acerca de
+      case 2: // Reseñas de prueba
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              company.name,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    company.averageRating.toStringAsFixed(1),
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      color: colors.onSurface,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildStars(5, colors),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${company.totalReviews} reseñas',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Ubicación: ${company.location}\n'
-              'Tipo de contratación: ${company.employmentType}\n'
-              'Áreas clave: ${company.tags.join(", ")}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colors.onSurfaceVariant,
-                height: 1.6,
-              ),
-            ),
+            const SizedBox(height: 14),
+            for (final review in _mockReviews) ...[
+              _buildReviewCard(review, theme, colors),
+              const SizedBox(height: 10),
+            ],
           ],
         );
-
-      default: // Reseñas
-        return Text(
-          'Aún no hay reseñas publicadas para ${company.name}.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colors.onSurfaceVariant,
-          ),
-        );
+      default:
+        return const SizedBox.shrink();
     }
   }
+
+  Widget _buildReviewCard(
+    _CompanyReview review,
+    ThemeData theme,
+    ColorScheme colors,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: colors.primary.withValues(alpha: .12),
+                child: Text(
+                  review.name.substring(0, 1),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: colors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      review.name,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colors.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      review.date,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _buildStars(review.rating, colors),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            review.comment,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colors.onSurfaceVariant,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStars(int rating, ColorScheme colors) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var star = 1; star <= 5; star++)
+          Icon(
+            star <= rating ? Icons.star_rounded : Icons.star_border_rounded,
+            color: colors.tertiary,
+            size: 18,
+          ),
+      ],
+    );
+  }
+}
+
+class _CompanyReview {
+  const _CompanyReview({
+    required this.name,
+    required this.date,
+    required this.rating,
+    required this.comment,
+  });
+
+  final String name;
+  final String date;
+  final int rating;
+  final String comment;
 }
 
 /// Dibuja las figuras geométricas sutiles en el fondo verde del encabezado

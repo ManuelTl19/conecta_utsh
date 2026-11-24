@@ -14,6 +14,7 @@ class AppTextField extends StatelessWidget {
     this.keyboardType,
     this.suffixIcon,
     this.inputFormatters,
+    this.enabled = true,
     super.key,
   });
 
@@ -26,11 +27,13 @@ class AppTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final Widget? suffixIcon;
   final List<TextInputFormatter>? inputFormatters;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      enabled: enabled,
       obscureText: obscureText,
       textInputAction: textInputAction,
       keyboardType: keyboardType,

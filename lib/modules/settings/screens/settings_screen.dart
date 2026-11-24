@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/helpers/providers/app_settings.dart';
+import 'package:conecta_utsh/modules/app/components/quick_menu.dart';
 import 'package:conecta_utsh/modules/settings/components/settings_components.dart';
 import 'package:conecta_utsh/modules/settings/models/settings_option_model.dart';
 import 'package:conecta_utsh/modules/settings/services/settings_service.dart';
@@ -169,6 +170,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                           onToggle: () {},
                           onPressed: widget.onLogout,
                         ),
+                        SizedBox(height: QuickMenu.reservedHeight(context) + 8),
                       ],
                     ),
             ),

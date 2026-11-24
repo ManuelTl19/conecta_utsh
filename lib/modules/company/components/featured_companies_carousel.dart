@@ -118,7 +118,9 @@ class _FeaturedCompaniesCarouselState extends State<FeaturedCompaniesCarousel>
                     ),
                     child: FeaturedCompanyCard(
                       company: company,
-                      onSave: () => widget.onSave(company),
+                      onSave: () => widget.onSave(
+                        company.copyWith(isFavorite: !company.isFavorite),
+                      ),
                     ),
                   ),
                   builder: (context, child) {

@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/helpers/providers/app_settings.dart';
+import 'package:conecta_utsh/helpers/style.dart';
 import 'package:conecta_utsh/modules/app/components/home_components.dart';
+import 'package:conecta_utsh/modules/app/components/quick_menu.dart';
 import 'package:conecta_utsh/modules/app/components/user_drawer.dart';
 import 'package:conecta_utsh/modules/app/models/login_response_model.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
@@ -8,12 +10,17 @@ import 'package:conecta_utsh/modules/app/services/token_store.dart';
 import 'package:conecta_utsh/modules/app/screens/notifications_screen.dart';
 import 'package:conecta_utsh/modules/app/screens/profile_screen.dart';
 import 'package:conecta_utsh/modules/company/components/company_cards.dart';
+import 'package:conecta_utsh/modules/company/components/company_filters_sheet.dart';
 import 'package:conecta_utsh/modules/company/components/featured_companies_carousel.dart';
+import 'package:conecta_utsh/modules/company/components/company_search_filters.dart';
+import 'package:conecta_utsh/modules/company/models/company_filters.dart';
 import 'package:conecta_utsh/modules/company/models/company_model.dart';
 import 'package:conecta_utsh/modules/company/services/company_service.dart';
+import 'package:conecta_utsh/modules/company/screens/company_details_screen.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:conecta_utsh/modules/company/screens/company_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     required this.user,
@@ -33,11 +40,15 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
+
 // 1. Agrega este import arriba junto a los demás de company:
 class _HomeScreenState extends State<HomeScreen>
     with AutomaticKeepAliveClientMixin<HomeScreen> {
+  final TextEditingController _searchController = TextEditingController();
   List<CompanyModel> _companies = [];
   List<CompanyModel> _featuredCompanies = [];
+  String _searchQuery = '';
+  CompanyFilters _appliedFilters = const CompanyFilters();
   bool _isLoading = true;
   String? _loadError;
   bool _isDrawerOpen = false;
@@ -46,10 +57,23 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   bool get wantKeepAlive => true;
 
+  List<CompanyModel> get _filteredCompanies => filterCompanies(
+    _companies,
+    searchQuery: _searchQuery,
+    selectedFilter: 'Todas',
+    filters: _appliedFilters,
+  );
+
   @override
   void initState() {
     super.initState();
     _loadCompanies();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCompanies() async {
@@ -78,18 +102,19 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _toggleSaved(CompanyModel selected) {
+    widget.companyService.setMockFavorite(selected.id, selected.isFavorite);
     setState(() {
       _companies = _companies
           .map(
             (company) => company.id == selected.id
-                ? company.copyWith(isSaved: !company.isSaved)
+                ? company.copyWith(isFavorite: selected.isFavorite)
                 : company,
           )
           .toList();
       _featuredCompanies = _featuredCompanies
           .map(
             (company) => company.id == selected.id
-                ? company.copyWith(isSaved: !company.isSaved)
+                ? company.copyWith(isFavorite: selected.isFavorite)
                 : company,
           )
           .toList();
@@ -112,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen>
       if (!mounted) return;
       AppSettings.isSignedIn = false;
       AppSettings.loginDate = null;
-      Navigator.of(context).pop();
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } on TokenStorageException catch (error) {
       if (mounted) {
         await Dialogs.showSimpleDialog(
@@ -130,11 +155,31 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _onSearch(String value) {
-    // TODO: conectar con el endpoint de búsqueda de empresas.
+    setState(() => _searchQuery = value);
   }
 
-  void _onFilterPressed() {
-    // TODO: abrir los filtros de vacantes cuando el servicio esté disponible.
+  Future<void> _onFilterPressed() async {
+    final selected = await showModalBottomSheet<CompanyFilters>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      barrierColor: Theme.of(context).colorScheme.scrim.withValues(alpha: .5),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Style.getCircularBorderRadius(24).topLeft,
+        ),
+      ),
+      builder: (context) => CompanyFiltersSheet(
+        initialFilters: _appliedFilters,
+        query: _searchQuery,
+        companyService: widget.companyService,
+        sourceCompanies: _companies,
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _appliedFilters = selected);
   }
 
   void _onViewAllFeatured() {
@@ -152,15 +197,31 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _openProfile() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => ProfileScreen(user: widget.user)),
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ProfileScreen(authService: widget.authService, onLogout: _logout),
+      ),
     );
   }
-// 2. Agrega este método junto a _openProfile() y _openNotifications():
+
+  // 2. Agrega este método junto a _openProfile() y _openNotifications():
   void _openCompanies() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const CompaniesScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => CompaniesScreen(initialQuery: _searchQuery),
+      ),
     );
   }
+
+  void _openCompanyDetail(CompanyModel company) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            CompanyDetailScreen(company: company, onToggleSaved: _toggleSaved),
+      ),
+    );
+  }
+
   void _openNotifications() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
@@ -267,7 +328,13 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
         const SizedBox(height: 23),
-        HomeSearchBar(onSearch: _onSearch, onFilterPressed: _onFilterPressed),
+        CompanySearchFilters(
+          controller: _searchController,
+          hintText: 'Buscar empresa, sector o área',
+          onSearch: _onSearch,
+          filtersActive: _appliedFilters.hasActiveFilters,
+          onFilterPressed: _onFilterPressed,
+        ),
         const SizedBox(height: 24),
         HomeSectionHeading(
           title: 'Empresas destacadas',
@@ -289,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen>
         else if (_loadError != null)
           _LoadError(message: _loadError!, onRetry: _loadCompanies)
         else if (_featuredCompanies.isEmpty)
-          const _EmptyState(message: 'No hay empresas destacadas por ahora.')
+          _EmptyState(message: 'No hay empresas destacadas por ahora.')
         else
           FeaturedCompaniesCarousel(
             companies: _featuredCompanies,
@@ -298,7 +365,9 @@ class _HomeScreenState extends State<HomeScreen>
         const SizedBox(height: 24),
         HomeSectionHeading(
           title: 'Empresas',
-          onViewAll: _openCompanies,///agregue esta linea
+          onViewAll: _openCompanies,
+
+          ///agregue esta linea
         ),
         const SizedBox(height: 11),
         if (_isLoading)
@@ -310,22 +379,32 @@ class _HomeScreenState extends State<HomeScreen>
           )
         else if (_loadError != null)
           _LoadError(message: _loadError!, onRetry: _loadCompanies)
-        else if (_companies.isEmpty)
-          const _EmptyState(message: 'No hay empresas disponibles.')
+        else if (_filteredCompanies.isEmpty)
+          _EmptyState(
+            message: _companies.isEmpty
+                ? 'No hay empresas disponibles.'
+                : 'No se encontraron empresas con esos criterios.',
+          )
         else
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: _companies.length,
+            itemCount: _filteredCompanies.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              mainAxisExtent: 164,
+              mainAxisExtent: 184,
             ),
-            itemBuilder: (context, index) =>
-                CompanyCard(company: _companies[index]),
+            itemBuilder: (context, index) {
+              final company = _filteredCompanies[index];
+              return CompanyCard(
+                company: company,
+                onTap: () => _openCompanyDetail(company),
+              );
+            },
           ),
+        SizedBox(height: QuickMenu.reservedHeight(context) + 8),
       ],
     );
   }

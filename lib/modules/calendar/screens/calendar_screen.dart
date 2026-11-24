@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:conecta_utsh/modules/app/components/quick_menu.dart';
 import 'package:conecta_utsh/modules/calendar/components/card_form_calendar.dart';
 import 'package:conecta_utsh/modules/calendar/models/appointment_model.dart';
 import 'package:conecta_utsh/modules/calendar/models/availability_model.dart';
@@ -22,12 +23,24 @@ class _CalendarScreenState extends State<CalendarScreen>
   // Horarios usando el modelo TimeSlotModel
   final _timeSlots = [
     TimeSlotModel(time: '09:00 AM', range: '09:00–09:30 AM', isAvailable: true),
-    TimeSlotModel(time: '10:00 AM', range: '10:00–10:30 AM', isAvailable: false),
+    TimeSlotModel(
+      time: '10:00 AM',
+      range: '10:00–10:30 AM',
+      isAvailable: false,
+    ),
     TimeSlotModel(time: '11:00 AM', range: '11:00–11:30 AM', isAvailable: true),
-    TimeSlotModel(time: '12:00 PM', range: '12:00–12:30 PM', isAvailable: false),
+    TimeSlotModel(
+      time: '12:00 PM',
+      range: '12:00–12:30 PM',
+      isAvailable: false,
+    ),
     TimeSlotModel(time: '01:00 PM', range: '01:00–01:30 PM', isAvailable: true),
     TimeSlotModel(time: '02:00 PM', range: '02:00–02:30 PM', isAvailable: true),
-    TimeSlotModel(time: '03:00 PM', range: '03:00–03:30 PM', isAvailable: false),
+    TimeSlotModel(
+      time: '03:00 PM',
+      range: '03:00–03:30 PM',
+      isAvailable: false,
+    ),
     TimeSlotModel(time: '04:00 PM', range: '04:00–04:30 PM', isAvailable: true),
   ];
 
@@ -143,9 +156,7 @@ class _CalendarScreenState extends State<CalendarScreen>
         }
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cita agendada correctamente'),
-        ),
+        const SnackBar(content: Text('Cita agendada correctamente')),
       );
     }
   }
@@ -181,8 +192,11 @@ class _CalendarScreenState extends State<CalendarScreen>
                       final targetDay = _nextBusinessDay(_today);
                       setState(() {
                         _selectedDate = targetDay;
-                        _focusedMonth =
-                            DateTime(targetDay.year, targetDay.month, 1);
+                        _focusedMonth = DateTime(
+                          targetDay.year,
+                          targetDay.month,
+                          1,
+                        );
                         _selectedSlot = null;
                       });
                     },
@@ -232,7 +246,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         _LegendDot(
-                            color: colors.primary, label: 'Seleccionado'),
+                          color: colors.primary,
+                          label: 'Seleccionado',
+                        ),
                         const SizedBox(width: 14),
                         const _LegendDot(color: _brandGreen, label: 'Con cita'),
                       ],
@@ -285,8 +301,8 @@ class _CalendarScreenState extends State<CalendarScreen>
                         color: !slot.isAvailable
                             ? colors.onSurfaceVariant.withValues(alpha: 0.5)
                             : isSelected
-                                ? colors.onPrimary
-                                : colors.onSurface,
+                            ? colors.onPrimary
+                            : colors.onSurface,
                       ),
                     ),
                     selected: isSelected,
@@ -413,6 +429,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                   );
                 },
               ),
+            SizedBox(height: QuickMenu.reservedHeight(context) + 8),
           ],
         ),
       ),
@@ -465,12 +482,16 @@ class _MonthlyAppointmentCalendar extends StatelessWidget {
     final colors = theme.colorScheme;
 
     final firstDayOfMonth = DateTime(focusedMonth.year, focusedMonth.month, 1);
-    final daysInMonth =
-        DateTime(focusedMonth.year, focusedMonth.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      focusedMonth.year,
+      focusedMonth.month + 1,
+      0,
+    ).day;
     final startOffset = firstDayOfMonth.weekday - 1;
     final totalCells = startOffset + daysInMonth;
 
-    final canGoPrevMonth = focusedMonth.year > today.year ||
+    final canGoPrevMonth =
+        focusedMonth.year > today.year ||
         (focusedMonth.year == today.year && focusedMonth.month > today.month);
 
     return Column(
@@ -491,9 +512,12 @@ class _MonthlyAppointmentCalendar extends StatelessWidget {
                   icon: const Icon(Icons.chevron_left_rounded),
                   onPressed: canGoPrevMonth
                       ? () => onMonthChanged(
-                            DateTime(
-                                focusedMonth.year, focusedMonth.month - 1, 1),
-                          )
+                          DateTime(
+                            focusedMonth.year,
+                            focusedMonth.month - 1,
+                            1,
+                          ),
+                        )
                       : null,
                 ),
                 IconButton(
@@ -545,18 +569,23 @@ class _MonthlyAppointmentCalendar extends StatelessWidget {
             }
 
             final dayNumber = index - startOffset + 1;
-            final cellDate =
-                DateTime(focusedMonth.year, focusedMonth.month, dayNumber);
+            final cellDate = DateTime(
+              focusedMonth.year,
+              focusedMonth.month,
+              dayNumber,
+            );
 
             final isPast = cellDate.isBefore(today);
-            final isWeekend = cellDate.weekday == DateTime.saturday ||
+            final isWeekend =
+                cellDate.weekday == DateTime.saturday ||
                 cellDate.weekday == DateTime.sunday;
             final isDisabled = isPast || isWeekend;
 
             final isToday = _isSameDay(cellDate, today);
             final isSelected = _isSameDay(cellDate, selectedDate);
-            final hasAppointment =
-                scheduledDates.any((d) => _isSameDay(d, cellDate));
+            final hasAppointment = scheduledDates.any(
+              (d) => _isSameDay(d, cellDate),
+            );
 
             Color? bgColor;
             Color textColor = colors.onSurface;
@@ -635,10 +664,7 @@ class _LegendDot extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
       ],
     );
   }

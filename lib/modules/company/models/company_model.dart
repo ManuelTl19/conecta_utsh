@@ -2,82 +2,117 @@ class CompanyModel {
   const CompanyModel({
     required this.id,
     required this.name,
-    required this.position,
-    required this.logoKey,
-    required this.salary,
-    required this.period,
-    required this.currency,
-    required this.location,
-    required this.tags,
-    required this.employmentType,
-    required this.level,
-    required this.isFeatured,
-    required this.isSaved,
+    required this.description,
+    required this.sector,
+    required this.availableAreas,
+    required this.address,
+    required this.municipality,
+    required this.state,
+    required this.mapUrl,
+    required this.contact,
+    required this.requirements,
+    required this.active,
+    required this.acceptedCareers,
+    required this.registeredAt,
+    required this.averageRating,
+    required this.totalReviews,
+    required this.isFavorite,
   });
 
   final String id;
   final String name;
-  final String position;
-  final String logoKey;
-  final num salary;
-  final String period;
-  final String currency;
-  final String location;
-  final List<String> tags;
-  final String employmentType;
-  final String level;
-  final bool isFeatured;
-  final bool isSaved;
+  final String description;
+  final String sector;
+  final List<String> availableAreas;
+  final String address;
+  final String municipality;
+  final String state;
+  final String mapUrl;
+  final String contact;
+  final List<String> requirements;
+  final bool active;
+  final List<String> acceptedCareers;
+  final String registeredAt;
+  final double averageRating;
+  final int totalReviews;
+  final bool isFavorite;
 
   factory CompanyModel.fromJson(Map<String, dynamic> json) {
-    final tags = json['tags'];
-    if (json['id'] is! String ||
-        json['name'] is! String ||
-        json['position'] is! String ||
-        json['logoKey'] is! String ||
-        json['salary'] is! num ||
-        json['period'] is! String ||
-        json['currency'] is! String ||
-        json['location'] is! String ||
-        tags is! List ||
-        tags.any((tag) => tag is! String) ||
-        json['employmentType'] is! String ||
-        json['level'] is! String ||
-        json['isFeatured'] is! bool ||
-        json['isSaved'] is! bool) {
+    final id = json['_id'] ?? json['id'];
+    final location = json['ubicacion'];
+    final areas = json['areasDisponibles'] ?? const [];
+    final requirements = json['requisitos'] ?? const [];
+    final careers = json['carrerasAceptadas'] ?? const [];
+    final rating = json['calificacionPromedio'] ?? 0;
+    final reviewCount = json['totalResenas'] ?? 0;
+    final registeredAt = json['fechaRegistro'] ?? '';
+    final description = json['descripcion'] ?? '';
+    final contact = json['contacto'] ?? '';
+    final active = json['activa'] ?? true;
+    final isFavorite = json['esFavorita'];
+
+    if (id is! String ||
+        json['nombre'] is! String ||
+        description is! String ||
+        json['sector'] is! String ||
+        areas is! List ||
+        areas.any((area) => area is! String) ||
+        location is! Map<String, dynamic> ||
+        location['municipio'] is! String ||
+        location['estado'] is! String ||
+        (location['direccion'] != null && location['direccion'] is! String) ||
+        (location['mapaUrl'] != null && location['mapaUrl'] is! String) ||
+        contact is! String ||
+        requirements is! List ||
+        requirements.any((item) => item is! String) ||
+        active is! bool ||
+        careers is! List ||
+        careers.any((career) => career is! String) ||
+        registeredAt is! String ||
+        rating is! num ||
+        reviewCount is! int ||
+        (isFavorite != null && isFavorite is! bool)) {
       throw const FormatException('Los datos de la empresa no son válidos.');
     }
 
     return CompanyModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      position: json['position'] as String,
-      logoKey: json['logoKey'] as String,
-      salary: json['salary'] as num,
-      period: json['period'] as String,
-      currency: json['currency'] as String,
-      location: json['location'] as String,
-      tags: List<String>.from(tags),
-      employmentType: json['employmentType'] as String,
-      level: json['level'] as String,
-      isFeatured: json['isFeatured'] as bool,
-      isSaved: json['isSaved'] as bool,
+      id: id,
+      name: json['nombre'] as String,
+      description: description,
+      sector: json['sector'] as String,
+      availableAreas: List<String>.from(areas),
+      address: location['direccion'] as String? ?? '',
+      municipality: location['municipio'] as String,
+      state: location['estado'] as String,
+      mapUrl: location['mapaUrl'] as String? ?? '',
+      contact: contact,
+      requirements: List<String>.from(requirements),
+      active: active,
+      acceptedCareers: List<String>.from(careers),
+      registeredAt: registeredAt,
+      averageRating: rating.toDouble(),
+      totalReviews: reviewCount,
+      isFavorite: isFavorite as bool? ?? false,
     );
   }
 
-  CompanyModel copyWith({bool? isSaved}) => CompanyModel(
+  CompanyModel copyWith({bool? isFavorite}) => CompanyModel(
     id: id,
     name: name,
-    position: position,
-    logoKey: logoKey,
-    salary: salary,
-    period: period,
-    currency: currency,
-    location: location,
-    tags: tags,
-    employmentType: employmentType,
-    level: level,
-    isFeatured: isFeatured,
-    isSaved: isSaved ?? this.isSaved,
+    description: description,
+    sector: sector,
+    availableAreas: availableAreas,
+    address: address,
+    municipality: municipality,
+    state: state,
+    mapUrl: mapUrl,
+    contact: contact,
+    requirements: requirements,
+    active: active,
+    acceptedCareers: acceptedCareers,
+    registeredAt: registeredAt,
+    averageRating: averageRating,
+    totalReviews: totalReviews,
+    isFavorite: isFavorite ?? this.isFavorite,
   );
 }

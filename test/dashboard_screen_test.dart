@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:resize/resize.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:conecta_utsh/helpers/providers/app_settings.dart';
 import 'package:conecta_utsh/helpers/providers/providers.dart';
 import 'package:conecta_utsh/modules/app/components/quick_menu.dart';
 import 'package:conecta_utsh/modules/app/models/login_response_model.dart';
@@ -30,15 +30,17 @@ void main() {
     addTearDown(authService.close);
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: DashboardScreen(
-          user: const LoginUserModel(
-            id: 'user-id',
-            name: 'Ana',
-            email: 'ana@example.com',
-            role: 'estudiante',
+      Resize(
+        builder: () => MaterialApp(
+          home: DashboardScreen(
+            user: const LoginUserModel(
+              id: 'user-id',
+              name: 'Ana',
+              email: 'ana@example.com',
+              role: 'estudiante',
+            ),
+            authService: authService,
           ),
-          authService: authService,
         ),
       ),
     );

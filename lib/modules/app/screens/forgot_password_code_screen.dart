@@ -522,19 +522,19 @@ class _ForgotPasswordCodeScreenState extends State<ForgotPasswordCodeScreen> {
                 ),
               ),
             ),
-            if (_isCodeConfirmed && !_isExpired) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _editCode,
-                  child: Text(
-                    'Editar código',
-                    style: Style.getHeaderThree(color: Style.getPrimaryColor()),
-                  ),
-                ),
-              ),
-            ],
+            // if (_isCodeConfirmed && !_isExpired) ...[
+            //   const SizedBox(height: 8),
+            //   Align(
+            //     alignment: Alignment.centerRight,
+            //     child: TextButton(
+            //       onPressed: _editCode,
+            //       child: Text(
+            //         'Editar código',
+            //         style: Style.getHeaderThree(color: Style.getPrimaryColor()),
+            //       ),
+            //     ),
+            //   ),
+            // ],
             const SizedBox(height: 12),
             if (!_isExpired && !_isCodeConfirmed)
               PrimaryButton(

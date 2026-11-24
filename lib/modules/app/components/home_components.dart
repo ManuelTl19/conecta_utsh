@@ -69,66 +69,6 @@ class UserAvatar extends StatelessWidget {
   }
 }
 
-class HomeSearchBar extends StatelessWidget {
-  const HomeSearchBar({
-    required this.onSearch,
-    required this.onFilterPressed,
-    super.key,
-  });
-
-  final ValueChanged<String> onSearch;
-  final VoidCallback onFilterPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 46,
-            decoration: BoxDecoration(
-              color: colors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: TextField(
-              onChanged: onSearch,
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: colors.onSurface),
-              decoration: InputDecoration(
-                hintText: 'Buscar empresas',
-                hintStyle: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(color: colors.onSurfaceVariant),
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  color: colors.onSurfaceVariant,
-                  size: 20,
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 13),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 46,
-          height: 46,
-          child: Material(
-            color: colors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(13),
-            child: IconButton(
-              tooltip: 'Filtros',
-              onPressed: onFilterPressed,
-              icon: Icon(Icons.tune_rounded, color: colors.tertiary, size: 20),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class HomeSectionHeading extends StatelessWidget {
   const HomeSectionHeading({
     required this.title,
