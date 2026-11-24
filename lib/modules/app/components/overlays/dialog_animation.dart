@@ -40,16 +40,20 @@ class DialogAnimationState extends State<DialogAnimation>
         color: Colors.transparent,
         child: ScaleTransition(
           scale: scaleAnimation,
-          child: Container(
-            margin: Style.getPaddingAll(40),
-            padding: Style.noPadding(),
-            decoration: ShapeDecoration(
-              color: Style.getCardColor(),
-              shape: RoundedRectangleBorder(
-                borderRadius: Style.getBorderRadius(),
+          child: ClipRRect(
+            // Recorta el contenido para que los botones respeten las esquinas del diálogo.
+            borderRadius: Style.getBorderRadius(),
+            child: Container(
+              margin: Style.getPaddingAll(40),
+              padding: Style.noPadding(),
+              decoration: ShapeDecoration(
+                color: Style.getCardColor(),
+                shape: RoundedRectangleBorder(
+                  borderRadius: Style.getBorderRadius(),
+                ),
               ),
+              child: widget.content,
             ),
-            child: widget.content,
           ),
         ),
       ),

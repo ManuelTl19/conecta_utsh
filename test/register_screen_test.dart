@@ -113,6 +113,56 @@ void main() {
     expect(find.text('Faltan datos'), findsOneWidget);
     await dismissAlert(tester);
 
+    await tester.enterText(firstName, 'Jose');
+    final firstNameController = tester
+        .widget<ui.TextFormField>(firstName)
+        .controller!;
+    for (var attempt = 0; attempt < 4; attempt++) {
+      final oldText = firstNameController.text;
+      final caret = firstNameController.selection.extentOffset;
+      final textWithSpace = oldText.replaceRange(caret, caret, ' ');
+      tester.testTextInput.updateEditingValue(
+        ui.TextEditingValue(
+          text: textWithSpace,
+          selection: ui.TextSelection.collapsed(offset: caret + 1),
+          composing: ui.TextRange(start: caret, end: caret + 1),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(firstNameController.text, 'Jose ');
+      expect(firstNameController.selection.extentOffset, 5);
+    }
+
+    tester.testTextInput.updateEditingValue(
+      const ui.TextEditingValue(
+        text: 'Jose    ',
+        selection: ui.TextSelection.collapsed(offset: 8),
+      ),
+    );
+    await tester.pump();
+    expect(firstNameController.text, 'Jose ');
+
+    await tester.enterText(firstName, 'Jose');
+    tester.testTextInput.updateEditingValue(
+      const ui.TextEditingValue(
+        text: 'Jos ',
+        selection: ui.TextSelection.collapsed(offset: 4),
+      ),
+    );
+    await tester.pump();
+    expect(firstNameController.text, 'Jose');
+
+    await tester.enterText(firstName, 'Jose ');
+    const textWithSurname = 'Jose Pérez';
+    tester.testTextInput.updateEditingValue(
+      ui.TextEditingValue(
+        text: textWithSurname,
+        selection: ui.TextSelection.collapsed(offset: textWithSurname.length),
+      ),
+    );
+    await tester.pump();
+    expect(firstNameController.text, 'Jose Pérez');
+
     await tester.enterText(firstName, 'Ana    López');
     expect(
       tester.widget<ui.TextFormField>(firstName).controller!.text,

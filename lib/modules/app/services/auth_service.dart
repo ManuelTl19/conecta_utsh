@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:conecta_utsh/helpers/apis.dart';
 import 'package:conecta_utsh/modules/app/models/login_model.dart';
 import 'package:conecta_utsh/modules/app/models/login_response_model.dart';
+import 'package:conecta_utsh/modules/app/models/password_reset_model.dart';
 import 'package:conecta_utsh/modules/app/models/register_model.dart';
 import 'package:conecta_utsh/modules/app/services/token_store.dart';
 
@@ -11,6 +12,8 @@ class AuthService {
   AuthService({
     this.loginEndpoint,
     this.registerEndpoint,
+    this.forgotPasswordEndpoint,
+    this.resetPasswordEndpoint,
     HttpClient? client,
     TokenStore? tokenStore,
   }) : _client = client ?? HttpClient(),
@@ -18,11 +21,15 @@ class AuthService {
 
   final Uri? loginEndpoint;
   final Uri? registerEndpoint;
+  final Uri? forgotPasswordEndpoint;
+  final Uri? resetPasswordEndpoint;
   final HttpClient _client;
   final TokenStore _tokenStore;
 
   Uri get _loginUri => loginEndpoint ?? Apis.login;
   Uri get _registerUri => registerEndpoint ?? Apis.register;
+  Uri get _forgotPasswordUri => forgotPasswordEndpoint ?? Apis.forgotPassword;
+  Uri get _resetPasswordUri => resetPasswordEndpoint ?? Apis.resetPassword;
 
   Future<LoginResponseModel> login(LoginModel model) async {
     final responseBody = await _post(_loginUri, model.toJson());
@@ -38,6 +45,32 @@ class AuthService {
 
   Future<void> register(RegisterModel model) async {
     await _post(_registerUri, model.toJson());
+  }
+
+  Future<ForgotPasswordResponse> forgotPassword(
+    ForgotPasswordRequest model,
+  ) async {
+    final responseBody = await _post(_forgotPasswordUri, model.toJson());
+    if (responseBody.trim().isEmpty) return const ForgotPasswordResponse();
+    return ForgotPasswordResponse.fromJson(
+      _decodeResponse(
+        responseBody,
+        'La respuesta de recuperación no es válida.',
+      ),
+    );
+  }
+
+  Future<ResetPasswordResponse> resetPassword(
+    ResetPasswordRequest model,
+  ) async {
+    final responseBody = await _post(_resetPasswordUri, model.toJson());
+    if (responseBody.trim().isEmpty) return const ResetPasswordResponse();
+    return ResetPasswordResponse.fromJson(
+      _decodeResponse(
+        responseBody,
+        'La respuesta de cambio de contraseña no es válida.',
+      ),
+    );
   }
 
   Future<Map<String, String>> authorizationHeaders() async {
@@ -82,6 +115,17 @@ class AuthService {
     }
 
     return responseBody;
+  }
+
+  Map<String, dynamic> _decodeResponse(
+    String responseBody,
+    String errorMessage,
+  ) {
+    final decoded = jsonDecode(responseBody);
+    if (decoded is! Map<String, dynamic>) {
+      throw FormatException(errorMessage);
+    }
+    return decoded;
   }
 
   void close() => _client.close();

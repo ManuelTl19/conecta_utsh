@@ -4,12 +4,76 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:conecta_utsh/helpers/apis.dart';
 import 'package:conecta_utsh/modules/app/models/login_model.dart';
+import 'package:conecta_utsh/modules/app/models/password_reset_model.dart';
 import 'package:conecta_utsh/modules/app/models/register_model.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
 import 'package:conecta_utsh/modules/app/services/token_store.dart';
 
 void main() {
+  test('password recovery endpoints are declared in the API catalog', () {
+    expect(Apis.forgotPassword.path, '/api/auth/forgot-password');
+    expect(Apis.resetPassword.path, '/api/auth/reset-password');
+  });
+
+  test('auth service consumes both password recovery endpoints', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+
+    final forgotRequest = Completer<Map<String, dynamic>>();
+    final resetRequest = Completer<Map<String, dynamic>>();
+    server.listen((request) async {
+      final body = jsonDecode(
+        await utf8.decoder.bind(request).join(),
+      ) as Map<String, dynamic>;
+      if (request.uri.path == '/api/auth/forgot-password') {
+        forgotRequest.complete(body);
+        request.response.statusCode = HttpStatus.ok;
+        request.response.write('{"message":"Código enviado"}');
+      } else if (request.uri.path == '/api/auth/reset-password') {
+        resetRequest.complete(body);
+        request.response.statusCode = HttpStatus.ok;
+        request.response.write('{"message":"Contraseña actualizada"}');
+      } else {
+        request.response.statusCode = HttpStatus.notFound;
+      }
+      await request.response.close();
+    });
+
+    final baseUri = Uri.parse(
+      'http://${server.address.address}:${server.port}',
+    );
+    final service = AuthService(
+      forgotPasswordEndpoint: baseUri.resolve('/api/auth/forgot-password'),
+      resetPasswordEndpoint: baseUri.resolve('/api/auth/reset-password'),
+      tokenStore: _MemoryTokenStore(),
+    );
+    addTearDown(service.close);
+
+    final forgotResponse = await service.forgotPassword(
+      const ForgotPasswordRequest(email: 'juan@example.com'),
+    );
+    expect(await forgotRequest.future, {'correo': 'juan@example.com'});
+    expect(forgotResponse.message, 'Código enviado');
+
+    final resetResponse = await service.resetPassword(
+      const ResetPasswordRequest(
+        email: 'juan@example.com',
+        code: '123456',
+        password: 'NuevaClave2026!',
+        confirmPassword: 'NuevaClave2026!',
+      ),
+    );
+    expect(await resetRequest.future, {
+      'correo': 'juan@example.com',
+      'codigo': '123456',
+      'password': 'NuevaClave2026!',
+      'confirmarPassword': 'NuevaClave2026!',
+    });
+    expect(resetResponse.message, 'Contraseña actualizada');
+  });
+
   test('registration model omits an absent optional phone number', () {
     const model = RegisterModel(
       firstName: 'Ana',
@@ -126,7 +190,10 @@ void main() {
       expect(loginResponse.message, 'Inicio de sesión correcto');
       expect(loginResponse.token, 'test-jwt-token');
       expect(loginResponse.user.name, 'Juan');
-      expect(loginResponse.user.academicDirection, 'Tecnologías de la Información');
+      expect(
+        loginResponse.user.academicDirection,
+        'Tecnologías de la Información',
+      );
       expect(loginResponse.user.isInformationTechnologyCareer, isTrue);
       expect(loginResponse.user.location, isNull);
       expect(await service.authorizationHeaders(), {
