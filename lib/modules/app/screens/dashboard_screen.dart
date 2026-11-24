@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:conecta_utsh/helpers/providers/app_settings.dart';
 import 'package:conecta_utsh/modules/app/components/quick_menu.dart';
+import 'package:conecta_utsh/modules/calendar/screens/calendar_screen.dart';
 import 'package:conecta_utsh/modules/app/models/login_response_model.dart';
 import 'package:conecta_utsh/modules/app/screens/home_screen.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
@@ -77,7 +78,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<DashboardController>.value(
       value: _dashboardController,
@@ -91,7 +92,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   controller: _pageController,
                   onPageChanged: _dashboardController._updateFromPage,
                   children: [
-                    const _CalendarTab(),
+                    const CalendarScreen(), // <-- Pantalla separada
                     HomeScreen(
                       user: widget.user,
                       authService: widget.authService,
@@ -119,6 +120,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ... (_logout igual que antes)
+
+
   Future<void> _logout() async {
     try {
       await widget.authService.logout();
@@ -137,39 +141,5 @@ class _DashboardScreenState extends State<DashboardScreen> {
         duration: 2200,
       );
     }
-  }
-}
-
-class _CalendarTab extends StatefulWidget {
-  const _CalendarTab();
-
-  @override
-  State<_CalendarTab> createState() => _CalendarTabState();
-}
-
-class _CalendarTabState extends State<_CalendarTab>
-    with AutomaticKeepAliveClientMixin<_CalendarTab> {
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final colors = Theme.of(context).colorScheme;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.calendar_month_outlined, size: 48, color: colors.primary),
-          const SizedBox(height: 12),
-          Text('Calendario', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 5),
-          Text(
-            'Próximamente podrás organizar tus entrevistas.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
-      ),
-    );
   }
 }
