@@ -3,6 +3,11 @@ import 'package:conecta_utsh/helpers/helpers.dart';
 class ExitDialog extends StatelessWidget {
   const ExitDialog({super.key});
 
+  String _text(BuildContext context, String key, String fallback) {
+    final translation = MultiLanguages.of(context)?.translate(key);
+    return translation == null || translation == key ? fallback : translation;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -13,7 +18,7 @@ class ExitDialog extends StatelessWidget {
           child: Column(
             children: [
               Text(
-                MultiLanguages.of(context)!.translate('close_app'),
+                _text(context, 'close_app', '¿Deseas salir de la aplicación?'),
                 style: Style.getHeaderTwo(
                   color: Style.getPrimaryColor(),
                   fontWeight: FontWeight.bold,
@@ -27,7 +32,11 @@ class ExitDialog extends StatelessWidget {
               ),
               SizedBox(height: 10.h),
               Text(
-                MultiLanguages.of(context)!.translate('close_app_description'),
+                _text(
+                  context,
+                  'close_app_description',
+                  'La aplicación se cerrará.',
+                ),
                 textAlign: TextAlign.center,
                 style: Style.getHeaderThree(
                   color: Style.getTextColor(),
@@ -54,7 +63,7 @@ class ExitDialog extends StatelessWidget {
                   alignment: Alignment.center,
                 ),
                 child: Text(
-                  MultiLanguages.of(context)!.translate('cancel'),
+                  _text(context, 'cancel', 'Cancelar'),
                   style: Style.getHeaderThree(
                     color: Style.getPrimaryColor(),
                     fontWeight: FontWeight.w500,
@@ -81,7 +90,7 @@ class ExitDialog extends StatelessWidget {
                   alignment: Alignment.center,
                 ),
                 child: Text(
-                  MultiLanguages.of(context)!.translate('exit'),
+                  _text(context, 'exit', 'Salir'),
                   style: Style.getHeaderThree(
                     color: Style.white,
                     fontWeight: FontWeight.w500,

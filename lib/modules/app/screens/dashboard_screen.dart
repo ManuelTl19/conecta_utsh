@@ -51,7 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late final DashboardController _dashboardController;
   late final PageController _pageController;
   bool _isShowingExitDialog = false;
-
+  
   @override
   void initState() {
     super.initState();
@@ -79,46 +79,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<DashboardController>.value(
       value: _dashboardController,
-      child: Scaffold(
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: _dashboardController._updateFromPage,
-                  children: [
-                    const _CalendarTab(),
-                    HomeScreen(
-                      user: widget.user,
-                      authService: widget.authService,
-                      onSettings: () => _dashboardController.selectTab(2),
-                      onLogout: _logout,
-                    ),
-                    SettingsScreen(
-                      onLogout: _logout,
-                      onBack: () => _dashboardController.selectTab(1),
-                    ),
-                  ],
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _showExitDialog();
+        },
+        child: Scaffold(
+          body: SafeArea(
+            bottom: false,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: _dashboardController._updateFromPage,
+                    children: [
+                      const CalendarScreen(),
+                      HomeScreen(
+                        user: widget.user,
+                        authService: widget.authService,
+                        onSettings: () => _dashboardController.selectTab(2),
+                        onLogout: _logout,
+                      ),
+                      SettingsScreen(
+                        onLogout: _logout,
+                        onBack: () => _dashboardController.selectTab(1),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              AnimatedBuilder(
-                animation: _dashboardController,
-                builder: (context, _) => QuickMenu(
-                  selectedIndex: _dashboardController.selectedIndex,
-                  onSelected: _dashboardController.selectTab,
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: AnimatedBuilder(
+                    animation: _dashboardController,
+                    builder: (context, _) => QuickMenu(
+                      selectedIndex: _dashboardController.selectedIndex,
+                      onSelected: _dashboardController.selectTab,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _showExitDialog() async {
+    if (_isShowingExitDialog || !mounted) return;
+    _isShowingExitDialog = true;
+    try {
+      await Dialogs.exitDialog(context);
+    } finally {
+      _isShowingExitDialog = false;
+    }
   }
 
   Future<void> _logout() async {
