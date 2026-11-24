@@ -13,7 +13,7 @@ import 'package:conecta_utsh/modules/company/models/company_model.dart';
 import 'package:conecta_utsh/modules/company/services/company_service.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 import 'package:shimmer/shimmer.dart';
-
+import 'package:conecta_utsh/modules/company/screens/company_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     required this.user,
@@ -33,7 +33,7 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
-
+// 1. Agrega este import arriba junto a los demás de company:
 class _HomeScreenState extends State<HomeScreen>
     with AutomaticKeepAliveClientMixin<HomeScreen> {
   List<CompanyModel> _companies = [];
@@ -155,7 +155,12 @@ class _HomeScreenState extends State<HomeScreen>
       MaterialPageRoute<void>(builder: (_) => ProfileScreen(user: widget.user)),
     );
   }
-
+// 2. Agrega este método junto a _openProfile() y _openNotifications():
+  void _openCompanies() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const CompaniesScreen()),
+    );
+  }
   void _openNotifications() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const NotificationsScreen()),
@@ -293,9 +298,7 @@ class _HomeScreenState extends State<HomeScreen>
         const SizedBox(height: 24),
         HomeSectionHeading(
           title: 'Empresas',
-          onViewAll: () {
-            // TODO: navegar a la lista completa de empresas.
-          },
+          onViewAll: _openCompanies,///agregue esta linea
         ),
         const SizedBox(height: 11),
         if (_isLoading)
