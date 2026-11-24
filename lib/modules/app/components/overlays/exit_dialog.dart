@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:conecta_utsh/helpers/helpers.dart';
 
 class ExitDialog extends StatelessWidget {
@@ -43,7 +42,7 @@ class ExitDialog extends StatelessWidget {
           children: [
             Expanded(
               child: ElevatedButton(
-                onPressed: () => (context),
+                onPressed: () => Navigator.of(context).pop(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Style.getCardColor(),
                   padding: EdgeInsets.all(8.w),
@@ -66,10 +65,9 @@ class ExitDialog extends StatelessWidget {
             Expanded(
               child: ElevatedButton(
                 onPressed: () {
-                  (context);
+                  Navigator.of(context).pop();
                   Future.delayed(const Duration(milliseconds: 100), () {
                     SystemNavigator.pop();
-                    exit(0);
                   });
                 },
                 style: ElevatedButton.styleFrom(

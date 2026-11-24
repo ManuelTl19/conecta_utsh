@@ -21,35 +21,31 @@ class QuickMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: Container(
-              height: 72,
-              decoration: BoxDecoration(
-                color: colors.surface.withValues(alpha: .82),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: colors.outline.withValues(alpha: .25),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  for (var index = 0; index < _items.length; index++)
-                    _QuickMenuItem(
-                      icon: _items[index].icon,
-                      label: _items[index].label,
-                      selected: index == selectedIndex,
-                      onTap: () => onSelected(index),
-                    ),
-                ],
-              ),
+    final bottomPadding = MediaQuery.paddingOf(context).bottom + 12;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(18, 8, 18, bottomPadding),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            height: 72,
+            decoration: BoxDecoration(
+              color: colors.surface.withValues(alpha: .42),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: colors.outline.withValues(alpha: .30)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                for (var index = 0; index < _items.length; index++)
+                  _QuickMenuItem(
+                    icon: _items[index].icon,
+                    label: _items[index].label,
+                    selected: index == selectedIndex,
+                    onTap: () => onSelected(index),
+                  ),
+              ],
             ),
           ),
         ),

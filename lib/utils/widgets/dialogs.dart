@@ -305,8 +305,8 @@ class Dialogs {
   }
 
   // Function to show exit dialog
-  static exitDialog(BuildContext context) {
-    showDialog(
+  static Future<void> exitDialog(BuildContext context) {
+    return showDialog<void>(
       context: context,
       builder: (context) => DialogAnimation(content: ExitDialog()),
     );
