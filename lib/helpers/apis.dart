@@ -12,6 +12,10 @@ class Apis {
   static final Uri resetPassword = Uri.parse(
     '$baseUrl/api/auth/reset-password',
   );
+  static final Uri citas = Uri.parse('$baseUrl/api/citas');
+  static final Uri horariosDisponibles = Uri.parse(
+    '$baseUrl/api/citas/horarios-disponibles',
+  );
   static final Uri authMe = Uri.parse('$baseUrl/api/auth/me');
   static final Uri updateOwnProfile = Uri.parse('$baseUrl/api/usuarios/perfil');
   static final Uri deleteOwnProfile = Uri.parse('$baseUrl/api/usuarios/perfil');
