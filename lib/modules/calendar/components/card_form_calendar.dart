@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:conecta_utsh/helpers/style.dart';
+import 'package:conecta_utsh/modules/app/components/step_indicator.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart'; // Asegúrate de que aquí esté exportada la clase Dialogs
 import 'package:conecta_utsh/modules/calendar/models/appointment_model.dart';
 import 'package:conecta_utsh/modules/calendar/models/availability_model.dart';
@@ -25,7 +27,7 @@ class CardFormCalendar extends StatefulWidget {
 }
 
 class _CardFormCalendarState extends State<CardFormCalendar> {
-  static const Color _brandGreen = Color(0xFF007A1C);
+  Color get _brandGreen => Style.getPrimaryColor();
 
   final List<String> _direcciones = [
     'Tecnologías de la información',
@@ -51,6 +53,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
   String? _availabilityError;
   int _availabilityRequestVersion = 0;
   bool _isSubmitting = false;
+  bool _motivoInvalid = false;
   final TextEditingController _motivoController = TextEditingController();
 
   @override
@@ -61,8 +64,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
     _currentAvailability = DirectionAvailabilityModel(
       direccion: _selectedDireccion,
       hasAttention: dates.isNotEmpty,
-      attentionSchedule:
-          'Atención de lunes a viernes · 09:00 a 14:00 h (pausa de 12:00 a 13:00; citas de 10 min)',
+      attentionSchedule: 'Atención de lunes a viernes · 09:00 a 14:00 h (pausa de 12:00 a 13:00; citas de 10 min)',
       noAttentionMessage: 'No hay fechas hábiles disponibles.',
       availableDates: dates,
     );
@@ -87,7 +89,8 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
   }
 
   Future<void> _loadAvailabilityFor(int dateIndex) async {
-    if (dateIndex < 0 || dateIndex >= _currentAvailability.availableDates.length) {
+    if (dateIndex < 0 ||
+        dateIndex >= _currentAvailability.availableDates.length) {
       return;
     }
 
@@ -160,14 +163,24 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
     final motivo = _motivoController.text.trim();
 
     if (motivo.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Escribe el motivo de la cita.')),
+      setState(() => _motivoInvalid = true);
+      await Dialogs.showInfoDialog(
+        context,
+        title: 'Completa los campos',
+        message: 'Escribe el motivo de atención para poder solicitar la cita.',
+        icon: Icons.error_outline_rounded,
+        color: Style.getErrorColor(),
       );
       return;
     }
+    if (_motivoInvalid) setState(() => _motivoInvalid = false);
     if (!fechaHora.isAfter(DateTime.now())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona una fecha y hora futuras.')),
+      await Dialogs.showInfoDialog(
+        context,
+        title: 'Selecciona otro horario',
+        message: 'La fecha y hora de la cita deben ser futuras.',
+        icon: Icons.event_busy_outlined,
+        color: Style.getErrorColor(),
       );
       return;
     }
@@ -189,13 +202,14 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
       return;
     }
 
+    if (!mounted) return;
     await Dialogs.showSimpleDialog(
       context,
       title: '¡Solicitud enviada!',
       message:
           'Tu cita para ${nuevaCita.date} a las ${nuevaCita.time} h ha sido registrada.',
       icon: Icons.check_circle_outline_rounded,
-      color: _brandGreen,
+      color: Style.getSuccessColor(),
     );
 
     if (mounted) {
@@ -219,22 +233,24 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    final hasDates = _currentAvailability.hasAttention &&
+    final hasDates =
+        _currentAvailability.hasAttention &&
         _currentAvailability.availableDates.isNotEmpty;
 
-    final selectedDateObj =
-        hasDates ? _currentAvailability.availableDates[_selectedDateIndex] : null;
+    final selectedDateObj = hasDates
+        ? _currentAvailability.availableDates[_selectedDateIndex]
+        : null;
     final currentSlots = selectedDateObj?.slots ?? [];
-    final selectedSlotObj = (_selectedTimeIndex >= 0 &&
-            _selectedTimeIndex < currentSlots.length)
+    final selectedSlotObj =
+        (_selectedTimeIndex >= 0 && _selectedTimeIndex < currentSlots.length)
         ? currentSlots[_selectedTimeIndex]
         : null;
 
     final bool canGoNext = _currentStep == 0
         ? hasDates
         : _currentStep == 1
-            ? (selectedDateObj != null && selectedSlotObj != null)
-            : true;
+        ? (selectedDateObj != null && selectedSlotObj != null)
+        : true;
 
     return Material(
       color: colors.surface,
@@ -252,15 +268,18 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                   children: [
                     Text(
                       'Agendar cita',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      style: Style.getHeaderOne(
+                        color: Style.getTextColor(),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       _stepSubtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
+                      style: Style.getTextStyle(
+                        color: Style.getObscureTextColor(),
+                        fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -275,24 +294,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
             ),
             const SizedBox(height: 10),
 
-            // Indicador visual de 3 pasos
-            Row(
-              children: List.generate(3, (index) {
-                final isCompletedOrCurrent = index <= _currentStep;
-                return Expanded(
-                  child: Container(
-                    height: 4,
-                    margin: EdgeInsets.only(right: index < 2 ? 6 : 0),
-                    decoration: BoxDecoration(
-                      color: isCompletedOrCurrent
-                          ? _brandGreen
-                          : colors.outlineVariant.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                );
-              }),
-            ),
+            StepIndicator(step: _currentStep, stepCount: 3),
             const SizedBox(height: 14),
 
             // --- CONTENIDO DINÁMICO SEGÚN EL PASO ---
@@ -324,7 +326,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: Style.getButtonBorderRadius(),
                         ),
                       ),
                       onPressed: () {
@@ -342,7 +344,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                       backgroundColor: _brandGreen,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: Style.getButtonBorderRadius(),
                       ),
                     ),
                     onPressed: canGoNext && !_isSubmitting
@@ -355,19 +357,20 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                           }
                         : null,
                     child: _isSubmitting
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Style.getInverseTextColor(),
                             ),
                           )
                         : Text(
                             _currentStep < 2 ? 'Siguiente' : 'Confirmar cita',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                            style: Style.getHeaderThree(
+                              color: Style.getInverseTextColor(),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                   ),
@@ -396,8 +399,10 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
         children: [
           Text(
             'Dirección académica / carrera',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
+            style: Style.getHeaderThree(
+              color: Style.getTextColor(),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
@@ -405,7 +410,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
               color: colors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: Style.getCircularBorderRadius(12),
               border: Border.all(
                 color: colors.outlineVariant.withValues(alpha: 0.6),
               ),
@@ -420,7 +425,9 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                     value: dir,
                     child: Text(
                       dir,
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: Style.getTextStyle(
+                        color: Style.getTextColor(),
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -441,7 +448,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
               color: hasDates
                   ? _brandGreen.withValues(alpha: 0.08)
                   : colors.errorContainer.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: Style.getCircularBorderRadius(12),
               border: Border.all(
                 color: hasDates
                     ? _brandGreen.withValues(alpha: 0.3)
@@ -463,9 +470,10 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                     hasDates
                         ? _currentAvailability.attentionSchedule
                         : (_currentAvailability.noAttentionMessage ??
-                            'Sin fechas disponibles.'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.onSurface,
+                              'Sin fechas disponibles.'),
+                    style: Style.getTextStyle(
+                      color: Style.getTextColor(),
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -497,8 +505,10 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
         children: [
           Text(
             '1. Fecha disponible · ${_currentAvailability.availableDates.isEmpty ? DateTime.now().year : _currentAvailability.availableDates[_selectedDateIndex].rawDate.substring(0, 4)}',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
+            style: Style.getHeaderThree(
+              color: Style.getTextColor(),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
@@ -512,13 +522,13 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                 return Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(
-                      right: index <
-                              _currentAvailability.availableDates.length - 1
+                      right:
+                          index < _currentAvailability.availableDates.length - 1
                           ? 10
                           : 0,
                     ),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: Style.getCircularBorderRadius(12),
                       onTap: () {
                         setState(() {
                           _selectedDateIndex = index;
@@ -532,7 +542,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                           color: isSelected
                               ? _brandGreen
                               : colors.surfaceContainerLowest,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: Style.getCircularBorderRadius(12),
                           border: Border.all(
                             color: isSelected
                                 ? _brandGreen
@@ -543,19 +553,23 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                           children: [
                             Text(
                               item.labelDate,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
+                              style: Style.getHeaderThree(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
                                 color: isSelected
-                                    ? Colors.white
-                                    : colors.onSurface,
+                                    ? Style.getInverseTextColor()
+                                    : Style.getTextColor(),
                               ),
                             ),
                             Text(
                               item.dayName,
-                              style: theme.textTheme.labelSmall?.copyWith(
+                              style: Style.getHeaderThree(
+                                fontSize: 9,
                                 color: isSelected
-                                    ? Colors.white.withValues(alpha: 0.9)
-                                    : colors.onSurfaceVariant,
+                                    ? Style.getInverseTextColor().withValues(
+                                        alpha: 0.9,
+                                      )
+                                    : Style.getObscureTextColor(),
                               ),
                             ),
                           ],
@@ -573,23 +587,28 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
             children: [
               Text(
                 '2. Hora (${widget.startHour}:00 - ${widget.endHour}:00)',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+                style: Style.getHeaderThree(
+                  color: Style.getTextColor(),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               if (selectedSlotObj != null)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: _brandGreen.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     'Elegido: ${selectedSlotObj.time} h',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: Style.getHeaderThree(
+                      fontWeight: FontWeight.w700,
                       color: _brandGreen,
+                      fontSize: 10,
                     ),
                   ),
                 ),
@@ -608,21 +627,22 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                 final label = '${hour.toString().padLeft(2, '0')}:00';
 
                 final prefix = '${hour.toString().padLeft(2, '0')}:';
-                final hasFreeSlot = currentSlots
-                    .any((s) => s.time.startsWith(prefix) && s.isAvailable);
+                final hasFreeSlot = currentSlots.any(
+                  (s) => s.time.startsWith(prefix) && s.isAvailable,
+                );
 
                 return ChoiceChip(
                   label: Text(label),
                   selected: isHourSelected,
                   selectedColor: _brandGreen,
-                  labelStyle: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
+                  labelStyle: Style.getHeaderThree(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
                     color: isHourSelected
-                        ? Colors.white
+                        ? Style.getInverseTextColor()
                         : hasFreeSlot
-                            ? colors.onSurface
-                            : colors.onSurfaceVariant.withValues(alpha: 0.4),
+                        ? Style.getTextColor()
+                        : Style.getObscureTextColor().withValues(alpha: 0.4),
                   ),
                   backgroundColor: colors.surfaceContainerLowest,
                   side: BorderSide(
@@ -648,14 +668,14 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
               children: [
                 Text(
                   'No se pudieron cargar los horarios: $_availabilityError',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colors.error,
+                  style: Style.getTextStyle(
+                    color: Style.getErrorColor(),
+                    fontSize: 11,
                   ),
                 ),
                 TextButton(
-                  onPressed: () => unawaited(
-                    _loadAvailabilityFor(_selectedDateIndex),
-                  ),
+                  onPressed: () =>
+                      unawaited(_loadAvailabilityFor(_selectedDateIndex)),
                   child: const Text('Intentar de nuevo'),
                 ),
               ],
@@ -675,7 +695,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                 final isSelected = _selectedTimeIndex == globalIndex;
 
                 return InkWell(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: Style.getCircularBorderRadius(10),
                   onTap: slot.isAvailable
                       ? () => setState(() => _selectedTimeIndex = globalIndex)
                       : null,
@@ -686,9 +706,9 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                       color: !slot.isAvailable
                           ? colors.surfaceContainerLow.withValues(alpha: 0.5)
                           : isSelected
-                              ? _brandGreen
-                              : colors.surfaceContainerLowest,
-                      borderRadius: BorderRadius.circular(10),
+                          ? _brandGreen
+                          : colors.surfaceContainerLowest,
+                      borderRadius: Style.getCircularBorderRadius(10),
                       border: Border.all(
                         color: !slot.isAvailable
                             ? colors.outlineVariant.withValues(alpha: 0.4)
@@ -699,27 +719,34 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                       children: [
                         Text(
                           slot.time,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
+                          style: Style.getHeaderThree(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
                             decoration: !slot.isAvailable
                                 ? TextDecoration.lineThrough
                                 : null,
                             color: !slot.isAvailable
-                                ? colors.onSurfaceVariant.withValues(alpha: 0.45)
+                                ? colors.onSurfaceVariant.withValues(
+                                    alpha: 0.45,
+                                  )
                                 : isSelected
-                                    ? Colors.white
-                                    : _brandGreen,
+                                ? Style.getInverseTextColor()
+                                : _brandGreen,
                           ),
                         ),
                         Text(
                           !slot.isAvailable ? 'Ocupado' : 'Disponible',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontSize: 10,
+                          style: Style.getHeaderThree(
+                            fontSize: 9,
                             color: !slot.isAvailable
-                                ? colors.onSurfaceVariant.withValues(alpha: 0.45)
+                                ? colors.onSurfaceVariant.withValues(
+                                    alpha: 0.45,
+                                  )
                                 : isSelected
-                                    ? Colors.white.withValues(alpha: 0.9)
-                                    : _brandGreen,
+                                ? Style.getInverseTextColor().withValues(
+                                    alpha: 0.9,
+                                  )
+                                : _brandGreen,
                           ),
                         ),
                       ],
@@ -741,7 +768,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: colors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: Style.getCircularBorderRadius(12),
             border: Border.all(color: colors.outlineVariant),
           ),
           child: Column(
@@ -749,23 +776,27 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
             children: [
               Text(
                 'Resumen de la solicitud',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+                style: Style.getHeaderThree(
+                  fontWeight: FontWeight.w700,
                   color: _brandGreen,
+                  fontSize: 12,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 _selectedDireccion,
-                style: theme.textTheme.bodyMedium?.copyWith(
+                style: Style.getTextStyle(
+                  color: Style.getTextColor(),
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 '${selectedDateObj?.dayName ?? ''} ${selectedDateObj?.labelDate ?? ''} · ${selectedSlotObj?.range ?? ''}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colors.onSurfaceVariant,
+                style: Style.getTextStyle(
+                  color: Style.getObscureTextColor(),
+                  fontSize: 11,
                 ),
               ),
             ],
@@ -774,33 +805,62 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
         const SizedBox(height: 14),
         Text(
           'Motivo de la atención',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
+          style: Style.getHeaderThree(
+            color: _motivoInvalid
+                ? Style.getErrorColor()
+                : Style.getTextColor(),
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: _motivoController,
-          maxLines: 2,
+          maxLines: 4,
+          minLines: 3,
+          onChanged: (value) {
+            if (_motivoInvalid && value.trim().isNotEmpty) {
+              setState(() => _motivoInvalid = false);
+            }
+          },
           decoration: InputDecoration(
-            hintText: 'Ej. Revisión de carta de presentación o proyecto...',
-            hintStyle: theme.textTheme.bodySmall?.copyWith(
-              color: colors.onSurfaceVariant.withValues(alpha: 0.7),
+            hintText: 'Describe brevemente el motivo de tu atención...',
+            hintStyle: Style.getTextStyle(
+              color: Style.getObscureTextColor().withValues(alpha: 0.7),
+              fontSize: 11,
             ),
             filled: true,
             fillColor: colors.surfaceContainerLowest,
-            contentPadding: const EdgeInsets.all(12),
+            contentPadding: const EdgeInsets.all(14),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: Style.getCircularBorderRadius(12),
               borderSide: BorderSide(
-                color: colors.outlineVariant.withValues(alpha: 0.5),
+                color: _motivoInvalid
+                    ? Style.getErrorColor()
+                    : Style.getFormFieldBorderColor(),
               ),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: Style.getCircularBorderRadius(12),
               borderSide: BorderSide(
-                color: colors.outlineVariant.withValues(alpha: 0.5),
+                color: _motivoInvalid
+                    ? Style.getErrorColor()
+                    : Style.getFormFieldBorderColor(),
               ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: Style.getCircularBorderRadius(12),
+              borderSide: BorderSide(
+                color: _motivoInvalid
+                    ? Style.getErrorColor()
+                    : Style.getPrimaryColor(),
+                width: 1.5,
+              ),
+            ),
+            errorText: _motivoInvalid ? 'Este campo es obligatorio.' : null,
+            errorStyle: Style.getTextStyle(
+              color: Style.getErrorColor(),
+              fontSize: 10,
             ),
           ),
         ),

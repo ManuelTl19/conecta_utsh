@@ -1,9 +1,11 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:conecta_utsh/helpers/style.dart';
 import 'package:conecta_utsh/modules/app/components/quick_menu.dart';
 import 'package:conecta_utsh/modules/calendar/components/card_form_calendar.dart';
 import 'package:conecta_utsh/modules/calendar/models/appointment_model.dart';
 import 'package:conecta_utsh/modules/calendar/models/availability_model.dart';
 import 'package:conecta_utsh/modules/calendar/service/citas_service.dart';
+import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -14,7 +16,7 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen>
     with AutomaticKeepAliveClientMixin<CalendarScreen> {
-  static const Color _brandGreen = Color(0xFF007A1C);
+  Color get _brandGreen => Style.getPrimaryColor();
 
   late DateTime _today;
   late DateTime _selectedDate;
@@ -95,22 +97,15 @@ class _CalendarScreenState extends State<CalendarScreen>
     final id = appointment.id;
     if (id == null) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancelar cita'),
-        content: const Text('¿Quieres cancelar esta cita?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Volver'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cancelar cita'),
-          ),
-        ],
-      ),
+    final confirmed = await Dialogs.showConfirmDialogDelete(
+      context,
+      title: 'Cancelar cita',
+      message: '¿Quieres cancelar esta cita?',
+      icon: Icons.event_busy_outlined,
+      confirmText: 'Cancelar cita',
+      cancelText: 'Volver',
+      confirmColor: Style.getErrorColor(),
+      cancelColor: Style.getSecondaryColor(),
     );
     if (confirmed != true || !mounted) return;
 
@@ -191,8 +186,8 @@ class _CalendarScreenState extends State<CalendarScreen>
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      shape: RoundedRectangleBorder(
+        borderRadius: Style.getVerticalBorderRadius(top: 24, bottom: 0),
       ),
       builder: (context) {
         return Padding(
@@ -200,7 +195,7 @@ class _CalendarScreenState extends State<CalendarScreen>
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: FractionallySizedBox(
-            heightFactor: 0.55,
+            heightFactor: 0.84,
             child: CardFormCalendar(citasService: _citasService),
           ),
         );
@@ -219,9 +214,6 @@ class _CalendarScreenState extends State<CalendarScreen>
           _focusedMonth = DateTime(parsedDate.year, parsedDate.month, 1);
         }
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cita agendada correctamente')),
-      );
     }
   }
 
@@ -238,7 +230,7 @@ class _CalendarScreenState extends State<CalendarScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Encabezado con botones "Hoy" y "Agendar"
+            // 1. Encabezado y acceso para agendar
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Row(
@@ -246,32 +238,29 @@ class _CalendarScreenState extends State<CalendarScreen>
                   Expanded(
                     child: Text(
                       'Calendario',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      style: Style.getHeaderOne(
+                        color: Style.getTextColor(),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  FilledButton.tonalIcon(
-                    onPressed: () {
-                      final targetDay = _nextBusinessDay(_today);
-                      setState(() {
-                        _selectedDate = targetDay;
-                        _focusedMonth = DateTime(
-                          targetDay.year,
-                          targetDay.month,
-                          1,
-                        );
-                        _selectedSlot = null;
-                      });
-                    },
-                    icon: const Icon(Icons.today_rounded, size: 18),
-                    label: const Text('Hoy'),
-                  ),
-                  const SizedBox(width: 8),
                   FilledButton.icon(
                     onPressed: _openScheduleForm,
                     icon: const Icon(Icons.add_rounded, size: 18),
                     label: const Text('Agendar'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Style.getPrimaryColor(),
+                      foregroundColor: Style.getInverseTextColor(),
+                      textStyle: Style.getHeaderThree(
+                        color: Style.getInverseTextColor(),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: Style.getButtonBorderRadius(),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -282,7 +271,7 @@ class _CalendarScreenState extends State<CalendarScreen>
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: Style.getCircularBorderRadius(16),
                 side: BorderSide(color: colors.outlineVariant),
               ),
               child: Padding(
@@ -314,7 +303,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                           label: 'Seleccionado',
                         ),
                         const SizedBox(width: 14),
-                        const _LegendDot(color: _brandGreen, label: 'Con cita'),
+                        _LegendDot(color: _brandGreen, label: 'Con cita'),
                       ],
                     ),
                   ],
@@ -330,8 +319,10 @@ class _CalendarScreenState extends State<CalendarScreen>
                 children: [
                   Text(
                     'Horarios (${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year})',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    style: Style.getHeaderTwo(
+                      color: Style.getTextColor(),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   Row(
@@ -358,7 +349,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                   return ChoiceChip(
                     label: Text(
                       slot.time,
-                      style: TextStyle(
+                      style: Style.getTextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                         decoration: slot.isAvailable
                             ? null
                             : TextDecoration.lineThrough,
@@ -401,8 +394,10 @@ class _CalendarScreenState extends State<CalendarScreen>
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
               child: Text(
                 'Mis citas',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                style: Style.getHeaderTwo(
+                  color: Style.getTextColor(),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -419,8 +414,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                     Text(
                       'No se pudieron cargar tus citas: $_appointmentsError',
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colors.error,
+                      style: Style.getTextStyle(
+                        color: Style.getErrorColor(),
+                        fontSize: 12,
                       ),
                     ),
                     TextButton(
@@ -449,8 +445,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                     const SizedBox(height: 8),
                     Text(
                       'No tienes citas agendadas.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colors.onSurfaceVariant,
+                      style: Style.getTextStyle(
+                        color: Style.getObscureTextColor(),
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -466,22 +463,23 @@ class _CalendarScreenState extends State<CalendarScreen>
                 itemBuilder: (context, index) {
                   final cita = _myAppointments[index];
                   final statusColor = switch (cita.status) {
-                    'Confirmada' => Colors.green,
-                    'Cancelada' => Colors.red,
-                    'Completada' => Colors.blue,
-                    _ => Colors.orange,
+                    'Confirmada' => Style.getSuccessColor(),
+                    'Cancelada' => Style.getErrorColor(),
+                    'Completada' => Style.getInfoColor(),
+                    _ => Style.getWarningColor(),
                   };
                   final canCancel =
                       cita.id != null &&
                       (cita.status == 'Pendiente' ||
                           cita.status == 'Confirmada');
-                  final isCancelling = cita.id != null &&
+                  final isCancelling =
+                      cita.id != null &&
                       _cancellingAppointmentIds.contains(cita.id);
 
                   return Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: Style.getCircularBorderRadius(14),
                       side: BorderSide(color: colors.outlineVariant),
                     ),
                     child: Column(
@@ -502,14 +500,17 @@ class _CalendarScreenState extends State<CalendarScreen>
                           ),
                           title: Text(
                             cita.title,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
+                            style: Style.getHeaderThree(
+                              color: Style.getTextColor(),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           subtitle: Text(
                             '${cita.direccion} • ${cita.date} (${cita.time})',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colors.onSurfaceVariant,
+                            style: Style.getTextStyle(
+                              color: Style.getObscureTextColor(),
+                              fontSize: 11,
                             ),
                           ),
                           trailing: Container(
@@ -519,13 +520,14 @@ class _CalendarScreenState extends State<CalendarScreen>
                             ),
                             decoration: BoxDecoration(
                               color: statusColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: Style.getCircularBorderRadius(20),
                             ),
                             child: Text(
                               cita.status,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
+                              style: Style.getHeaderThree(
+                                fontWeight: FontWeight.w700,
                                 color: statusColor,
+                                fontSize: 10,
                               ),
                             ),
                           ),
@@ -637,8 +639,10 @@ class _MonthlyAppointmentCalendar extends StatelessWidget {
           children: [
             Text(
               '${_monthNames[focusedMonth.month - 1]} ${focusedMonth.year}',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+              style: Style.getHeaderTwo(
+                color: Style.getTextColor(),
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
               ),
             ),
             Row(
@@ -675,8 +679,9 @@ class _MonthlyAppointmentCalendar extends StatelessWidget {
               child: Center(
                 child: Text(
                   _weekDays[i],
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  style: Style.getHeaderThree(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
                     color: isWeekendHeader
                         ? colors.onSurfaceVariant.withValues(alpha: 0.45)
                         : colors.onSurfaceVariant,
@@ -741,12 +746,12 @@ class _MonthlyAppointmentCalendar extends StatelessWidget {
             }
 
             return InkWell(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: Style.getCircularBorderRadius(10),
               onTap: isDisabled ? null : () => onDateSelected(cellDate),
               child: Container(
                 decoration: BoxDecoration(
                   color: bgColor,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: Style.getCircularBorderRadius(10),
                   border: border,
                 ),
                 child: Column(
@@ -754,10 +759,11 @@ class _MonthlyAppointmentCalendar extends StatelessWidget {
                   children: [
                     Text(
                       '$dayNumber',
-                      style: theme.textTheme.bodySmall?.copyWith(
+                      style: Style.getTextStyle(
+                        fontSize: 12,
                         fontWeight: (isSelected || hasAppointment || isToday)
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                            ? FontWeight.w700
+                            : FontWeight.w400,
                         color: textColor,
                       ),
                     ),
@@ -799,7 +805,13 @@ class _LegendDot extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.labelSmall),
+        Text(
+          label,
+          style: Style.getHeaderThree(
+            color: Style.getObscureTextColor(),
+            fontSize: 10,
+          ),
+        ),
       ],
     );
   }

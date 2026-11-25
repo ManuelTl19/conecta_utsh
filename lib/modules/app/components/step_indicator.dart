@@ -5,49 +5,64 @@ import 'package:conecta_utsh/helpers/style.dart';
 class StepIndicator extends StatelessWidget {
   const StepIndicator({
     required this.step,
-    required this.firstTitle,
-    required this.secondTitle,
+    this.firstTitle,
+    this.secondTitle,
+    this.thirdTitle,
+    this.stepCount,
     super.key,
   });
 
   final int step;
-  final String firstTitle;
-  final String secondTitle;
+  final String? firstTitle;
+  final String? secondTitle;
+  final String? thirdTitle;
+  final int? stepCount;
 
   @override
   Widget build(BuildContext context) {
     final primaryColor = Style.getPrimaryColor();
     final inactiveColor = Style.getSubtleColor();
+    final titles = [firstTitle, secondTitle, thirdTitle];
+    final totalSteps = stepCount ?? (thirdTitle == null ? 2 : 3);
+    final showTitles = titles.any((title) => title?.trim().isNotEmpty ?? false);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            _StepMarker(number: 1, completed: step > 0, active: step == 0),
-            Container(
-              width: 120,
-              height: 2,
-              color: step > 0 ? primaryColor : inactiveColor,
-            ),
-            _StepMarker(number: 2, completed: false, active: step == 1),
+            for (var index = 0; index < totalSteps; index++) ...[
+              _StepMarker(
+                number: index + 1,
+                completed: step > index,
+                active: step == index,
+              ),
+              if (index < totalSteps - 1)
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    color: step > index ? primaryColor : inactiveColor,
+                  ),
+                ),
+            ],
           ],
         ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 150,
-              child: _StepDescription(title: firstTitle, active: step == 0),
+        if (showTitles) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: List.generate(
+              totalSteps,
+              (index) => Expanded(
+                child: _StepDescription(
+                  title: titles[index] ?? '',
+                  active: step == index,
+                  compact: totalSteps > 2,
+                ),
+              ),
             ),
-            SizedBox(
-              width: 150,
-              child: _StepDescription(title: secondTitle, active: step == 1),
-            ),
-          ],
-        ),
+          ),
+        ],
       ],
     );
   }
@@ -102,10 +117,15 @@ class _StepMarker extends StatelessWidget {
 }
 
 class _StepDescription extends StatelessWidget {
-  const _StepDescription({required this.title, required this.active});
+  const _StepDescription({
+    required this.title,
+    required this.active,
+    required this.compact,
+  });
 
   final String title;
   final bool active;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +136,7 @@ class _StepDescription extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       style: Style.getHeaderThree(
         color: active ? Style.getTextColor() : Style.getObscureTextColor(),
-        fontSize: 10,
+        fontSize: compact ? 9 : 10,
         fontWeight: active ? FontWeight.w700 : FontWeight.w500,
       ),
     );

@@ -272,17 +272,22 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
       );
     }
 
-    return ListView.separated(
+    return GridView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       itemCount: controller.companies.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 1,
+        mainAxisSpacing: 12,
+        mainAxisExtent: 158,
+      ),
       itemBuilder: (context, index) {
         final company = controller.companies[index];
-        return CompanyListCard(
+        return CompanyCard(
           key: ValueKey(company.id),
           company: company,
           onTap: () => _openCompanyDetail(company),
+          showCareerSummary: true,
         );
       },
     );
@@ -296,7 +301,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       itemCount: 4,
       itemBuilder: (context, index) => Container(
-        height: 188,
+        height: 158,
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: colors.surfaceContainerHighest,

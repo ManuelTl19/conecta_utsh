@@ -27,86 +27,125 @@ class FeaturedCompanyCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Stack(
+          children: [
+            Positioned(
+              top: 8,
+              right: -9,
+              child: _FeaturedDecorationIcon(
+                icon: Icons.business_outlined,
+                size: 82,
+                angle: -0.18,
+                color: colors.onPrimary.withValues(alpha: .09),
+              ),
+            ),
+            Positioned(
+              top: 66,
+              right: 51,
+              child: _FeaturedDecorationIcon(
+                icon: Icons.handshake_outlined,
+                size: 55,
+                angle: 0.2,
+                color: colors.onPrimary.withValues(alpha: .09),
+              ),
+            ),
+            Positioned(
+              bottom: 8,
+              right: 7,
+              child: _FeaturedDecorationIcon(
+                icon: Icons.school_outlined,
+                size: 66,
+                angle: 0.16,
+                color: colors.onPrimary.withValues(alpha: .09),
+              ),
+            ),
+            Positioned(
+              top: 18,
+              right: 104,
+              child: _FeaturedDecorationIcon(
+                icon: Icons.assignment_turned_in_outlined,
+                size: 46,
+                angle: -0.22,
+                color: colors.onPrimary.withValues(alpha: .09),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Initial(company: company, size: 36, featured: true),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: colors.onPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                  Row(
+                    children: [
+                      _Initial(company: company, size: 36, featured: true),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: colors.onPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              _optionalText(company.sector) ??
+                                  'Sector no especificado',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colors.onPrimary.withValues(alpha: .78),
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          _optionalText(company.sector) ??
-                              'Sector no especificado',
+                      ),
+                      FavoritoButton(
+                        company: company,
+                        inactiveColor: colors.onPrimary,
+                      ),
+                    ],
+                  ),
+                  if (areas.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 4,
+                      children: areas
+                          .map((area) => _FeaturedAreaChip(label: area))
+                          .toList(),
+                    ),
+                  ],
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 15,
+                        color: colors.onPrimary,
+                      ),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          _companyLocation(company).isEmpty
+                              ? 'Ubicación no especificada'
+                              : _companyLocation(company),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: colors.onPrimary.withValues(alpha: .78),
+                            color: colors.onPrimary,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  FavoritoButton(
-                    company: company,
-                    inactiveColor: colors.onPrimary,
-                  ),
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: colors.onPrimary,
-                    size: 14,
-                  ),
-                ],
-              ),
-              if (areas.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 5,
-                  runSpacing: 4,
-                  children: areas
-                      .map((area) => _FeaturedAreaChip(label: area))
-                      .toList(),
-                ),
-              ],
-              const Spacer(),
-              Row(
-                children: [
-                  Icon(
-                    Icons.location_on_outlined,
-                    size: 15,
-                    color: colors.onPrimary,
-                  ),
-                  const SizedBox(width: 3),
-                  Expanded(
-                    child: Text(
-                      _companyLocation(company).isEmpty
-                          ? 'Ubicación no especificada'
-                          : _companyLocation(company),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: colors.onPrimary,
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -114,10 +153,16 @@ class FeaturedCompanyCard extends StatelessWidget {
 }
 
 class CompanyCard extends StatelessWidget {
-  const CompanyCard({required this.company, this.onTap, super.key});
+  const CompanyCard({
+    required this.company,
+    this.onTap,
+    this.showCareerSummary = false,
+    super.key,
+  });
 
   final CompanyModel company;
   final VoidCallback? onTap;
+  final bool showCareerSummary;
 
   @override
   Widget build(BuildContext context) {
@@ -126,83 +171,140 @@ class CompanyCard extends StatelessWidget {
     final area = company.availableAreas.isEmpty
         ? null
         : company.availableAreas.first;
+    final careers = company.acceptedCareers;
+    final careerSummary = careers.isEmpty
+        ? 'Acepta todas las carreras'
+        : [
+            careers.first,
+            if (careers.length > 1) '+${careers.length - 1}',
+          ].join(' ');
 
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
-      color: colors.surfaceContainerLowest,
+      color: colors.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: Style.getCircularBorderRadius(18),
-        side: BorderSide(color: colors.outlineVariant),
+        side: BorderSide(color: colors.primary.withValues(alpha: .28)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              right: -8,
+              child: _FeaturedDecorationIcon(
+                icon: Icons.business_outlined,
+                size: 62,
+                angle: -0.18,
+                color: colors.primary.withValues(alpha: .07),
+              ),
+            ),
+            Positioned(
+              bottom: 18,
+              right: 12,
+              child: _FeaturedDecorationIcon(
+                icon: Icons.badge_outlined,
+                size: 48,
+                angle: 0.2,
+                color: colors.primary.withValues(alpha: .06),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Initial(company: company, size: 40),
+                  Row(
+                    children: [
+                      _Initial(company: company, size: 40),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _companyName(company),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: colors.onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              _optionalText(company.sector) ??
+                                  'Sector no especificado',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      FavoritoButton(company: company),
+                    ],
+                  ),
                   const Spacer(),
-                  FavoritoButton(company: company),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    color: colors.onSurfaceVariant,
-                    size: 18,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                _companyName(company),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: colors.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _optionalText(company.sector) ?? 'Sector no especificado',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
-              ),
-              const Spacer(),
-              if (area != null && area.trim().isNotEmpty) ...[
-                _AreaChip(label: area),
-                const SizedBox(height: 7),
-              ],
-              Row(
-                children: [
-                  Icon(
-                    Icons.location_on_outlined,
-                    size: 14,
-                    color: colors.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 3),
-                  Expanded(
-                    child: Text(
-                      _companyLocation(company).isEmpty
-                          ? 'Ubicación no especificada'
-                          : _companyLocation(company),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
+                  if (area != null && area.trim().isNotEmpty) ...[
+                    _AreaChip(label: area),
+                    const SizedBox(height: 8),
+                  ],
+                  if (showCareerSummary) ...[
+                    Row(
+                      children: [
+                        Icon(
+                          careers.isEmpty
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.school_outlined,
+                          color: colors.primary,
+                          size: 15,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            careerSummary,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 14,
                         color: colors.onSurfaceVariant,
                       ),
-                    ),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          _companyLocation(company).isEmpty
+                              ? 'Ubicación no especificada'
+                              : _companyLocation(company),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -391,6 +493,32 @@ class _Initial extends StatelessWidget {
   }
 }
 
+class _FeaturedDecorationIcon extends StatelessWidget {
+  const _FeaturedDecorationIcon({
+    required this.icon,
+    required this.size,
+    required this.angle,
+    required this.color,
+  });
+
+  final IconData icon;
+  final double size;
+  final double angle;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: ExcludeSemantics(
+        child: Transform.rotate(
+          angle: angle,
+          child: Icon(icon, size: size, color: color),
+        ),
+      ),
+    );
+  }
+}
+
 class _FeaturedAreaChip extends StatelessWidget {
   const _FeaturedAreaChip({required this.label});
 
@@ -425,19 +553,29 @@ class _AreaChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: colors.surfaceContainerHigh,
+        color: colors.primary.withValues(alpha: .08),
+        border: Border.all(color: colors.primary.withValues(alpha: .16)),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: colors.onSurfaceVariant,
-          fontWeight: FontWeight.normal,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.work_outline_rounded, size: 12, color: colors.primary),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

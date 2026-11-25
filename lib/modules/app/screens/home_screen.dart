@@ -412,10 +412,9 @@ class _HomeScreenState extends State<HomeScreen>
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: companies.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    mainAxisExtent: 184,
+                    crossAxisCount: 1,
+                    mainAxisSpacing: 12,
+                    mainAxisExtent: 158,
                   ),
                   itemBuilder: (context, index) {
                     final company = companies[index];
@@ -448,10 +447,9 @@ class _CompanyGridSkeleton extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: 4,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        mainAxisExtent: 184,
+        crossAxisCount: 1,
+        mainAxisSpacing: 12,
+        mainAxisExtent: 158,
       ),
       itemBuilder: (context, index) => Container(
         decoration: BoxDecoration(
