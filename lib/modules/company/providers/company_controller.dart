@@ -4,15 +4,23 @@ import 'package:flutter/foundation.dart';
 import 'package:conecta_utsh/modules/company/models/company_filters.dart';
 import 'package:conecta_utsh/modules/company/models/company_model.dart';
 import 'package:conecta_utsh/modules/company/services/company_service.dart';
+import 'package:conecta_utsh/modules/favoritos/providers/favoritos_controller.dart';
 
 class CompanyController extends ChangeNotifier {
-  CompanyController({required CompanyService service, String initialQuery = ''})
+  CompanyController({
+    required CompanyService service,
+    required FavoritosController favoritosController,
+    String initialQuery = '',
+  })
     : _service = service,
+      _favoritosController = favoritosController,
       _query = initialQuery {
+    _favoritosController.addListener(_syncFavoriteFilter);
     unawaited(_load());
   }
 
   final CompanyService _service;
+  final FavoritosController _favoritosController;
   Timer? _searchDebounce;
   List<CompanyModel>? _unfilteredCompanies;
   int? _unfilteredTotal;
@@ -99,6 +107,7 @@ class CompanyController extends ChangeNotifier {
 
       _companies = response?.companies ?? unfiltered ?? _unfilteredCompanies!;
       _total = response?.total ?? _unfilteredTotal ?? _companies.length;
+      _applyFavoriteFilter();
       _isLoading = false;
       notifyListeners();
     } on CompanyApiException catch (error) {
@@ -142,10 +151,27 @@ class CompanyController extends ChangeNotifier {
     );
   }
 
+  void _syncFavoriteFilter() {
+    if (!_filters.soloFavoritas || !_favoritosController.hasLoaded) return;
+    final previousLength = _companies.length;
+    _applyFavoriteFilter();
+    if (_companies.length != previousLength) notifyListeners();
+  }
+
+  void _applyFavoriteFilter() {
+    if (!_filters.soloFavoritas || !_favoritosController.hasLoaded) return;
+    _companies = _companies
+        .where((company) => _favoritosController.isFavorite(company.id))
+        .toList(growable: false);
+    final removed = _total - _companies.length;
+    if (removed > 0) _total -= removed;
+  }
+
   @override
   void dispose() {
     _searchDebounce?.cancel();
     _requestId++;
+    _favoritosController.removeListener(_syncFavoriteFilter);
     super.dispose();
   }
 }

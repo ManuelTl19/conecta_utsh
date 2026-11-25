@@ -162,6 +162,9 @@ class AuthService {
       throw AuthApiException(
         statusCode: response.statusCode,
         message: message ?? response.reasonPhrase,
+        retryAfterSeconds: _retryAfterSeconds(
+          response.headers.value('retry-after'),
+        ),
       );
     }
 
@@ -179,14 +182,32 @@ class AuthService {
     return decoded;
   }
 
+  int? _retryAfterSeconds(String? header) {
+    if (header == null) return null;
+    final seconds = int.tryParse(header);
+    if (seconds != null) return seconds;
+    try {
+      final retryAt = HttpDate.parse(header);
+      final remaining = retryAt.difference(DateTime.now()).inSeconds;
+      return remaining > 0 ? remaining : 1;
+    } on FormatException {
+      return null;
+    }
+  }
+
   void close() => _client.close();
 }
 
 class AuthApiException implements Exception {
-  const AuthApiException({required this.statusCode, required this.message});
+  const AuthApiException({
+    required this.statusCode,
+    required this.message,
+    this.retryAfterSeconds,
+  });
 
   final int statusCode;
   final String message;
+  final int? retryAfterSeconds;
 
   @override
   String toString() => 'AuthApiException($statusCode): $message';

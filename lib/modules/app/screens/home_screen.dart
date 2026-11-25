@@ -6,6 +6,7 @@ import 'package:conecta_utsh/modules/app/components/home_components.dart';
 import 'package:conecta_utsh/modules/app/components/quick_menu.dart';
 import 'package:conecta_utsh/modules/app/components/user_drawer.dart';
 import 'package:conecta_utsh/modules/app/models/login_response_model.dart';
+import 'package:conecta_utsh/modules/app/providers/user_profile_controller.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
 import 'package:conecta_utsh/modules/app/services/token_store.dart';
 import 'package:conecta_utsh/modules/app/screens/profile_screen.dart';
@@ -19,6 +20,7 @@ import 'package:conecta_utsh/modules/company/providers/company_controller.dart';
 import 'package:conecta_utsh/modules/company/screens/company_details_screen.dart';
 import 'package:conecta_utsh/modules/company/screens/company_screen.dart';
 import 'package:conecta_utsh/modules/company/services/company_service.dart';
+import 'package:conecta_utsh/modules/favoritos/providers/favoritos_controller.dart';
 import 'package:conecta_utsh/modules/notifications/components/notification_bell_button.dart';
 import 'package:conecta_utsh/modules/notifications/providers/notificaciones_controller.dart';
 import 'package:conecta_utsh/modules/notifications/screens/notificaciones_screen.dart';
@@ -32,6 +34,8 @@ class HomeScreen extends StatefulWidget {
     this.companyService,
     this.onSettings,
     this.onLogout,
+    this.onUnauthorized,
+    this.onAccountDeleted,
     super.key,
   });
 
@@ -40,6 +44,8 @@ class HomeScreen extends StatefulWidget {
   final CompanyService? companyService;
   final VoidCallback? onSettings;
   final Future<void> Function()? onLogout;
+  final Future<void> Function()? onUnauthorized;
+  final Future<void> Function()? onAccountDeleted;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -49,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen>
     with AutomaticKeepAliveClientMixin<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   late final CompanyController _companyController;
+  late final FavoritosController _favoritosController;
   bool _isDrawerOpen = false;
   bool _isLoggingOut = false;
 
@@ -58,6 +65,10 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    _favoritosController = Provider.of<FavoritosController>(
+      context,
+      listen: false,
+    );
     _companyController = CompanyController(
       service:
           widget.companyService ??
@@ -65,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen>
             authService: widget.authService,
             onUnauthorized: _logout,
           ),
+      favoritosController: _favoritosController,
     );
   }
 
@@ -132,8 +144,15 @@ class _HomeScreenState extends State<HomeScreen>
   void _openCompanies() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ChangeNotifierProvider<CompanyController>.value(
-          value: _companyController,
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider<CompanyController>.value(
+              value: _companyController,
+            ),
+            ChangeNotifierProvider<FavoritosController>.value(
+              value: _favoritosController,
+            ),
+          ],
           child: CompaniesScreen(initialQuery: _companyController.query),
         ),
       ),
@@ -145,7 +164,17 @@ class _HomeScreenState extends State<HomeScreen>
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
-            builder: (_) => CompanyDetailScreen(company: company),
+            builder: (_) => MultiProvider(
+              providers: [
+                ChangeNotifierProvider<CompanyController>.value(
+                  value: _companyController,
+                ),
+                ChangeNotifierProvider<FavoritosController>.value(
+                  value: _favoritosController,
+                ),
+              ],
+              child: CompanyDetailScreen(company: company),
+            ),
           ),
         )
         .then((_) {
@@ -158,14 +187,34 @@ class _HomeScreenState extends State<HomeScreen>
       context,
       listen: false,
     );
+    final userProfileController = Provider.of<UserProfileController>(
+      context,
+      listen: false,
+    );
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ChangeNotifierProvider<NotificacionesController>.value(
-          value: notificationController,
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider<NotificacionesController>.value(
+              value: notificationController,
+            ),
+            ChangeNotifierProvider<CompanyController>.value(
+              value: _companyController,
+            ),
+            ChangeNotifierProvider<FavoritosController>.value(
+              value: _favoritosController,
+            ),
+            ChangeNotifierProvider<UserProfileController>.value(
+              value: userProfileController,
+            ),
+          ],
           child: ProfileScreen(
             authService: widget.authService,
             onLogout: _logout,
             userRole: widget.user.role,
+            profileController: userProfileController,
+            onUnauthorized: widget.onUnauthorized ?? _logout,
+            onAccountDeleted: widget.onAccountDeleted ?? _logout,
           ),
         ),
       ),
@@ -341,17 +390,6 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               const SizedBox(height: 24),
               HomeSectionHeading(title: 'Empresas', onViewAll: _openCompanies),
-              const SizedBox(height: 11),
-              if (!_companyController.isLoading &&
-                  _companyController.error == null)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${_companyController.total} empresas',
-                    style: Theme.of(context).textTheme.labelMedium
-                        ?.copyWith(color: colors.onSurfaceVariant),
-                  ),
-                ),
               const SizedBox(height: 11),
               if (_companyController.isLoading)
                 _CompanyGridSkeleton(colors: colors)

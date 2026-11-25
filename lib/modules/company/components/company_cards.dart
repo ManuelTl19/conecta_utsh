@@ -1,9 +1,14 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/helpers/style.dart';
 import 'package:conecta_utsh/modules/company/models/company_model.dart';
+import 'package:conecta_utsh/modules/favoritos/components/favorito_button.dart';
 
 class FeaturedCompanyCard extends StatelessWidget {
-  const FeaturedCompanyCard({required this.company, required this.onTap, super.key});
+  const FeaturedCompanyCard({
+    required this.company,
+    required this.onTap,
+    super.key,
+  });
 
   final CompanyModel company;
   final VoidCallback onTap;
@@ -55,6 +60,10 @@ class FeaturedCompanyCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  FavoritoButton(
+                    company: company,
+                    inactiveColor: colors.onPrimary,
                   ),
                   Icon(
                     Icons.arrow_forward_ios_rounded,
@@ -138,6 +147,7 @@ class CompanyCard extends StatelessWidget {
                 children: [
                   _Initial(company: company, size: 40),
                   const Spacer(),
+                  FavoritoButton(company: company),
                   Icon(
                     Icons.arrow_forward_rounded,
                     color: colors.onSurfaceVariant,
@@ -200,7 +210,11 @@ class CompanyCard extends StatelessWidget {
 }
 
 class CompanyListCard extends StatelessWidget {
-  const CompanyListCard({required this.company, required this.onTap, super.key});
+  const CompanyListCard({
+    required this.company,
+    required this.onTap,
+    super.key,
+  });
 
   final CompanyModel company;
   final VoidCallback onTap;
@@ -223,6 +237,7 @@ class CompanyListCard extends StatelessWidget {
 
     return Semantics(
       container: true,
+      explicitChildNodes: true,
       label: [
         _companyName(company),
         _optionalText(company.sector),
@@ -276,6 +291,7 @@ class CompanyListCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    FavoritoButton(company: company),
                   ],
                 ),
                 if (areas.isNotEmpty) ...[
@@ -393,10 +409,8 @@ class _FeaturedAreaChip extends StatelessWidget {
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: colors.onPrimary,
-          fontWeight: FontWeight.w500,
-        ),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: colors.onPrimary, fontWeight: FontWeight.w500),
       ),
     );
   }

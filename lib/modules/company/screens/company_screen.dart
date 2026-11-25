@@ -9,6 +9,7 @@ import 'package:conecta_utsh/modules/company/models/company_filters.dart';
 import 'package:conecta_utsh/modules/company/models/company_model.dart';
 import 'package:conecta_utsh/modules/company/providers/company_controller.dart';
 import 'package:conecta_utsh/modules/company/screens/company_details_screen.dart';
+import 'package:conecta_utsh/modules/favoritos/providers/favoritos_controller.dart';
 
 class CompaniesScreen extends StatefulWidget {
   const CompaniesScreen({this.initialQuery = '', super.key});
@@ -57,10 +58,22 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
 
   void _openCompanyDetail(CompanyModel company) {
     FocusManager.instance.primaryFocus?.unfocus();
+    final companyController = context.read<CompanyController>();
+    final favoritosController = context.read<FavoritosController>();
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
-            builder: (_) => CompanyDetailScreen(company: company),
+            builder: (_) => MultiProvider(
+              providers: [
+                ChangeNotifierProvider<CompanyController>.value(
+                  value: companyController,
+                ),
+                ChangeNotifierProvider<FavoritosController>.value(
+                  value: favoritosController,
+                ),
+              ],
+              child: CompanyDetailScreen(company: company),
+            ),
           ),
         )
         .then((_) {

@@ -12,7 +12,13 @@ class Apis {
   static final Uri resetPassword = Uri.parse(
     '$baseUrl/api/auth/reset-password',
   );
-  static final Uri currentUser = Uri.parse('$baseUrl/api/usuarios/me');
+  static final Uri authMe = Uri.parse('$baseUrl/api/auth/me');
+  static final Uri updateOwnProfile = Uri.parse('$baseUrl/api/usuarios/perfil');
+  static final Uri deleteOwnProfile = Uri.parse('$baseUrl/api/usuarios/perfil');
+  static final Uri changeOwnPassword = Uri.parse(
+    '$baseUrl/api/usuarios/password',
+  );
+  static final Uri currentUser = authMe;
   static final Uri companies = Uri.parse('$baseUrl/api/empresas');
   static final Uri notifications = Uri.parse('$baseUrl/api/notificaciones');
   static final Uri unreadNotifications = Uri.parse(
@@ -21,4 +27,11 @@ class Apis {
   static final Uri markAllNotificationsRead = Uri.parse(
     '$baseUrl/api/notificaciones/leer-todas',
   );
+  static final Uri favoritos = Uri.parse('$baseUrl/api/favoritos');
+
+  static Uri favoritoPorEmpresa(String empresaId) =>
+      Uri.parse('$baseUrl/api/favoritos/$empresaId');
+
+  static Uri verificarFavorito(String empresaId) =>
+      Uri.parse('$baseUrl/api/favoritos/$empresaId/verificar');
 }

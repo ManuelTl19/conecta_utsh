@@ -1,28 +1,41 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:resize/resize.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:conecta_utsh/helpers/style.dart';
 import 'package:conecta_utsh/modules/app/components/home_components.dart';
 import 'package:conecta_utsh/modules/app/components/primary_button.dart';
+import 'package:conecta_utsh/modules/app/providers/user_profile_controller.dart';
 import 'package:conecta_utsh/modules/app/models/user_profile_model.dart';
 import 'package:conecta_utsh/modules/app/screens/edit_profile_screen.dart';
-import 'package:conecta_utsh/modules/app/screens/forgot_password_email_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/change_password_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/delete_account_screen.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
 import 'package:conecta_utsh/modules/app/services/user_profile_service.dart';
+import 'package:conecta_utsh/modules/company/providers/company_controller.dart';
+import 'package:conecta_utsh/modules/favoritos/providers/favoritos_controller.dart';
+import 'package:conecta_utsh/modules/favoritos/screens/favoritos_screen.dart';
 import 'package:conecta_utsh/modules/notifications/components/notification_bell_button.dart';
 import 'package:conecta_utsh/modules/notifications/providers/notificaciones_controller.dart';
 import 'package:conecta_utsh/modules/notifications/screens/notificaciones_screen.dart';
+import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     required this.authService,
     required this.onLogout,
+    required this.onUnauthorized,
+    required this.onAccountDeleted,
+    required this.profileController,
     this.userRole,
     super.key,
   });
 
   final AuthService authService;
   final Future<void> Function() onLogout;
+  final Future<void> Function() onUnauthorized;
+  final Future<void> Function() onAccountDeleted;
+  final UserProfileController profileController;
   final String? userRole;
 
   @override
@@ -32,40 +45,56 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late final UserProfileService _profileService;
   UserProfile? _profile;
-  Object? _loadError;
+  String? _loadError;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _profileService = UserProfileService(authService: widget.authService);
+    _profile = widget.profileController.profile;
+    _isLoading = !_hasProfileData(_profile);
+    _profileService = UserProfileService(
+      authService: widget.authService,
+      onUnauthorized: widget.onUnauthorized,
+    );
     _loadProfile();
   }
 
-  @override
-  void dispose() {
-    _profileService.close();
-    super.dispose();
-  }
+  bool _hasProfileData(UserProfile? profile) =>
+      profile != null &&
+      (profile.nombre.isNotEmpty ||
+          profile.correo.isNotEmpty ||
+          profile.id.isNotEmpty);
 
-  Future<void> _loadProfile() async {
-    setState(() {
-      _isLoading = true;
-      _loadError = null;
-    });
+  Future<void> _loadProfile({bool showRefreshMessage = false}) async {
+    if (mounted) {
+      setState(() {
+        _loadError = null;
+        if (!_hasProfileData(_profile)) _isLoading = true;
+      });
+    }
     try {
-      final profile = await _profileService.getCurrentUser();
+      final profile = await _profileService.obtenerPerfil(
+        fallback: widget.profileController.profile,
+      );
       if (!mounted) return;
+      widget.profileController.update(profile);
       setState(() {
         _profile = profile;
         _isLoading = false;
+        _loadError = null;
       });
-    } on Exception catch (error) {
+    } on UserProfileApiException catch (error) {
       if (!mounted) return;
       setState(() {
-        _loadError = error;
+        _loadError = error.message;
         _isLoading = false;
       });
+      if (showRefreshMessage && _hasProfileData(_profile)) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.message)));
+      }
     }
   }
 
@@ -77,23 +106,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (_) => EditProfileScreen(
           profile: profile,
           profileService: _profileService,
+          profileController: widget.profileController,
         ),
       ),
     );
-    if (saved == true && mounted) await _loadProfile();
+    if (saved == true && mounted) {
+      setState(() => _profile = widget.profileController.profile);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
+    }
   }
 
   Future<void> _changePassword() async {
-    final profile = _profile;
-    if (profile == null) return;
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => ChangePasswordScreen(profileService: _profileService),
+      ),
+    );
+    if (changed == true && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Contraseña actualizada')));
+    }
+  }
+
+  Future<void> _deleteAccount() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => ForgotPasswordEmailScreen(
-          authService: widget.authService,
-          initialEmail: profile.correo,
+        builder: (_) => DeleteAccountScreen(
+          profileService: _profileService,
+          onUnauthorized: widget.onUnauthorized,
+          onAccountDeleted: widget.onAccountDeleted,
         ),
       ),
     );
+  }
+
+  Future<void> _confirmLogout() async {
+    final shouldLogout = await Dialogs.showConfirmDialogDelete(
+      context,
+      title: 'Cerrar sesión',
+      message: '¿Deseas salir de tu cuenta?',
+      icon: Icons.logout_rounded,
+      confirmText: 'Cerrar sesión',
+      cancelText: 'Cancelar',
+      confirmColor: Theme.of(context).colorScheme.error,
+      cancelColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+    );
+    if (shouldLogout == true) await widget.onLogout();
   }
 
   void _openNotifications() {
@@ -106,6 +166,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (_) => ChangeNotifierProvider<NotificacionesController>.value(
           value: notificationController,
           child: NotificacionesScreen(userRole: widget.userRole),
+        ),
+      ),
+    );
+  }
+
+  void _openFavorites() {
+    final favoritesController = context.read<FavoritosController>();
+    final companyController = context.read<CompanyController>();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider<FavoritosController>.value(
+              value: favoritesController,
+            ),
+            ChangeNotifierProvider<CompanyController>.value(
+              value: companyController,
+            ),
+          ],
+          child: const FavoritosScreen(),
         ),
       ),
     );
@@ -124,12 +204,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [NotificationBellButton(onPressed: _openNotifications)],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: colors.primary))
-          : _loadError != null
+          ? _buildProfileSkeleton(colors)
+          : _loadError != null && !_hasProfileData(_profile)
           ? _buildLoadError(context)
           : _profile == null
           ? _buildLoadError(context)
-          : _buildProfile(context, _profile!),
+          : RefreshIndicator(
+              onRefresh: () => _loadProfile(showRefreshMessage: true),
+              child: _buildProfile(context, _profile!),
+            ),
     );
   }
 
@@ -155,7 +238,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (_loadError != null) ...[
               SizedBox(height: 6.h),
               Text(
-                _loadError.toString(),
+                _loadError!,
                 textAlign: TextAlign.center,
                 style: Style.getTextStyle(
                   color: colors.onSurfaceVariant,
@@ -165,7 +248,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
             SizedBox(height: 14.h),
             TextButton(
-              onPressed: _loadProfile,
+              onPressed: () => _loadProfile(),
               child: Text(
                 'Reintentar',
                 style: Style.getHeaderThree(
@@ -180,8 +263,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildProfileSkeleton(ColorScheme colors) => Shimmer.fromColors(
+    baseColor: colors.surfaceContainerHighest,
+    highlightColor: colors.surface,
+    child: ListView(
+      padding: Style.getPaddingSymmetric(horizontal: 22, vertical: 18),
+      children: [
+        Center(
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 52,
+                backgroundColor: colors.surfaceContainerHighest,
+              ),
+              SizedBox(height: 14.h),
+              Container(
+                width: 190,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainerHighest,
+                  borderRadius: Style.getCircularBorderRadius(8),
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Container(
+                width: 150,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainerHighest,
+                  borderRadius: Style.getCircularBorderRadius(8),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 24.h),
+        Container(
+          height: 82,
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerHighest,
+            borderRadius: Style.getCircularBorderRadius(18),
+          ),
+        ),
+        SizedBox(height: 20.h),
+        for (var index = 0; index < 5; index++) ...[
+          Container(
+            height: 72,
+            margin: EdgeInsets.only(bottom: 10.h),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerHighest,
+              borderRadius: Style.getCircularBorderRadius(18),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+
   Widget _buildProfile(BuildContext context, UserProfile profile) {
     final colors = Theme.of(context).colorScheme;
+    final favoritesController = context.watch<FavoritosController>();
     final details = [
       (
         label: 'Correo electrónico',
@@ -208,7 +349,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       (label: 'Carrera', value: profile.carrera, icon: Icons.school_outlined),
       (
         label: 'Cuatrimestre',
-        value: '${profile.cuatrimestre}',
+        value: profile.cuatrimestre > 0
+            ? '${profile.cuatrimestre}.º cuatrimestre'
+            : 'No disponible',
         icon: Icons.calendar_month_outlined,
       ),
     ];
@@ -220,12 +363,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             children: [
               UserAvatar(
-                name: '${profile.nombre} ${profile.apellidoPaterno}',
+                name: profile.nombreCompleto,
+                initials: profile.iniciales,
                 size: 104,
               ),
               SizedBox(height: 14.h),
               Text(
-                profile.nombreCompleto,
+                profile.nombreCompletoPresentacion,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: colors.onSurface,
@@ -248,7 +392,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: _ProfileSummaryCard(
                 label: 'Favoritos',
-                value: '${profile.favoriteCount}',
+                value: favoritesController.hasLoaded
+                    ? '${favoritesController.count}'
+                    : '—',
                 icon: Icons.favorite_border_rounded,
               ),
             ),
@@ -291,28 +437,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         SizedBox(height: 8.h),
+        if (_loadError != null) ...[
+          Container(
+            margin: EdgeInsets.only(bottom: 8.h),
+            padding: Style.getPaddingAll(12),
+            decoration: BoxDecoration(
+              color: colors.errorContainer,
+              borderRadius: Style.getCircularBorderRadius(12),
+            ),
+            child: Text(
+              'No se pudieron actualizar tus datos. ${_loadError!}',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: colors.onErrorContainer),
+            ),
+          ),
+        ],
         _ProfileAccessItem(
           label: 'Mis empresas favoritas',
-          icon: Icons.favorite_border_rounded,
+          icon: Icons.bookmark_border_rounded,
+          onTap: _openFavorites,
         ),
-        _ProfileAccessItem(
-          label: 'Mi proceso de estadía',
-          icon: Icons.work_outline_rounded,
-        ),
-        _ProfileAccessItem(
-          label: 'Mis citas',
-          icon: Icons.event_available_outlined,
+        Builder(
+          builder: (context) {
+            final notificationController = context
+                .watch<NotificacionesController>();
+            return _ProfileAccessItem(
+              label: 'Notificaciones',
+              icon: Icons.notifications_none_rounded,
+              trailing: notificationController.unreadCount > 0
+                  ? '${notificationController.unreadCount}'
+                  : null,
+              onTap: _openNotifications,
+            );
+          },
         ),
         _ProfileAccessItem(
           label: 'Cambiar contraseña',
           icon: Icons.lock_outline_rounded,
           onTap: _changePassword,
         ),
+        if (profile.esEstudiante)
+          _ProfileAccessItem(
+            label: 'Eliminar cuenta',
+            icon: Icons.delete_outline_rounded,
+            color: colors.error,
+            onTap: _deleteAccount,
+          ),
         _ProfileAccessItem(
           label: 'Cerrar sesión',
           icon: Icons.logout_rounded,
           color: colors.error,
-          onTap: widget.onLogout,
+          onTap: _confirmLogout,
         ),
         SizedBox(height: 18.h),
         PrimaryButton(label: 'Editar perfil', onPressed: _editProfile),
@@ -429,12 +604,14 @@ class _ProfileAccessItem extends StatelessWidget {
     required this.icon,
     this.color,
     this.onTap,
+    this.trailing,
   });
 
   final String label;
   final IconData icon;
   final Color? color;
   final VoidCallback? onTap;
+  final String? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -468,6 +645,17 @@ class _ProfileAccessItem extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (trailing != null)
+                  Padding(
+                    padding: EdgeInsets.only(right: 8.w),
+                    child: Text(
+                      trailing!,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 Icon(
                   Icons.chevron_right_rounded,
                   color: color ?? colors.onSurfaceVariant,

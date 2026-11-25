@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 class UserAvatar extends StatelessWidget {
   const UserAvatar({
     required this.name,
+    this.initials,
     this.size = 42,
     this.showNotification = false,
     this.onTap,
@@ -10,6 +11,7 @@ class UserAvatar extends StatelessWidget {
   });
 
   final String name;
+  final String? initials;
   final double size;
   final bool showNotification;
   final VoidCallback? onTap;
@@ -17,13 +19,15 @@ class UserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final initials = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part[0].toUpperCase())
-        .join();
+    final avatarInitials =
+        initials ??
+        name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((part) => part.isNotEmpty)
+            .take(2)
+            .map((part) => part[0].toUpperCase())
+            .join();
     return Tooltip(
       message: 'Ver perfil',
       child: Semantics(
@@ -39,7 +43,7 @@ class UserAvatar extends StatelessWidget {
                 radius: size / 2,
                 backgroundColor: colors.primary.withValues(alpha: .12),
                 child: Text(
-                  initials,
+                  avatarInitials,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: colors.primary,
                     fontSize: size * .29,

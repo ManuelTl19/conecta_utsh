@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/modules/company/models/company_model.dart';
+import 'package:conecta_utsh/modules/favoritos/components/favorito_button.dart';
 
 class CompanyDetailScreen extends StatefulWidget {
   const CompanyDetailScreen({required this.company, super.key});
@@ -89,18 +90,27 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                                   size: 20,
                                 ),
                               ),
-                              if (_primaryContact != null)
-                                IconButton(
-                                  tooltip: 'Copiar contacto',
-                                  onPressed: _performPrimaryAction,
-                                  icon: const Icon(
-                                    Icons.copy_rounded,
-                                    color: Colors.white,
-                                    size: 22,
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FavoritoButton(
+                                    company: company,
+                                    inactiveColor: colors.onPrimary,
                                   ),
-                                )
-                              else
-                                const SizedBox(width: 48),
+                                  if (_primaryContact != null)
+                                    IconButton(
+                                      tooltip: 'Copiar contacto',
+                                      onPressed: _performPrimaryAction,
+                                      icon: const Icon(
+                                        Icons.copy_rounded,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
+                                    )
+                                  else
+                                    const SizedBox(width: 48),
+                                ],
+                              ),
                             ],
                           ),
                           Container(

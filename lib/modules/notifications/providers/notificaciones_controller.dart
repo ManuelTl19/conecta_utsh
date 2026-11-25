@@ -240,6 +240,22 @@ class NotificacionesController extends ChangeNotifier
     }
   }
 
+  void clearData() {
+    _loadGeneration++;
+    _notifications.clear();
+    _mutatingIds.clear();
+    _filter = NotificacionesFilter.todas;
+    _total = 0;
+    _unreadCount = 0;
+    _page = 1;
+    _totalPages = 1;
+    _isLoading = false;
+    _isLoadingMore = false;
+    _errorMessage = null;
+    _actionError = null;
+    _notifyIfAlive();
+  }
+
   void removeIfNotFound(String id) {
     final index = _notifications.indexWhere((item) => item.id == id);
     if (index < 0) return;

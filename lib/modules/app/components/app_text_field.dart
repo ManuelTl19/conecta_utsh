@@ -15,6 +15,11 @@ class AppTextField extends StatelessWidget {
     this.suffixIcon,
     this.inputFormatters,
     this.enabled = true,
+    this.autofillHints,
+    this.enableSuggestions = true,
+    this.autocorrect = true,
+    this.enableInteractiveSelection = true,
+    this.semanticsLabel,
     super.key,
   });
 
@@ -28,55 +33,68 @@ class AppTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final List<TextInputFormatter>? inputFormatters;
   final bool enabled;
+  final Iterable<String>? autofillHints;
+  final bool enableSuggestions;
+  final bool autocorrect;
+  final bool enableInteractiveSelection;
+  final String? semanticsLabel;
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      enabled: enabled,
-      obscureText: obscureText,
-      textInputAction: textInputAction,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      validator: validator,
-      style: Style.getTextStyle(color: Style.getTextColor(), fontSize: 12),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: Style.getHeaderThree(
-          color: Style.getTextColor(),
-          fontSize: 10,
-        ),
-        hintText: hint,
-        hintStyle: Style.getHintStyle(
-          color: Style.getObscureTextColor(),
-          fontSize: 12,
-        ),
-        filled: true,
-        fillColor: Style.getCardColor(),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 15,
-        ),
-        suffixIcon: suffixIcon,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: Style.getSubtleColor(), width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: Style.getPrimaryColor(), width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: Style.getErrorColor()),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: Style.getErrorColor(), width: 1.5),
+    return Semantics(
+      label: semanticsLabel,
+      textField: true,
+      child: TextFormField(
+        controller: controller,
+        enabled: enabled,
+        obscureText: obscureText,
+        textInputAction: textInputAction,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        autofillHints: autofillHints,
+        enableSuggestions: enableSuggestions,
+        autocorrect: autocorrect,
+        enableInteractiveSelection: enableInteractiveSelection,
+        validator: validator,
+        style: Style.getTextStyle(color: Style.getTextColor(), fontSize: 12),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: Style.getHeaderThree(
+            color: Style.getTextColor(),
+            fontSize: 10,
+          ),
+          hintText: hint,
+          hintStyle: Style.getHintStyle(
+            color: Style.getObscureTextColor(),
+            fontSize: 12,
+          ),
+          filled: true,
+          fillColor: Style.getCardColor(),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 15,
+          ),
+          suffixIcon: suffixIcon,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide(color: Style.getSubtleColor(), width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide(color: Style.getPrimaryColor(), width: 1.5),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide(color: Style.getErrorColor()),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide(color: Style.getErrorColor(), width: 1.5),
+          ),
         ),
       ),
     );
