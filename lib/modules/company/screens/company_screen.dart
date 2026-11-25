@@ -10,11 +10,24 @@ import 'package:conecta_utsh/modules/company/models/company_model.dart';
 import 'package:conecta_utsh/modules/company/providers/company_controller.dart';
 import 'package:conecta_utsh/modules/company/screens/company_details_screen.dart';
 import 'package:conecta_utsh/modules/favoritos/providers/favoritos_controller.dart';
+import 'package:conecta_utsh/modules/resenas/services/resenas_service.dart';
+import 'package:conecta_utsh/modules/solicitudes/services/solicitudes_service.dart';
 
 class CompaniesScreen extends StatefulWidget {
-  const CompaniesScreen({this.initialQuery = '', super.key});
+  const CompaniesScreen({
+    this.initialQuery = '',
+    this.userRole = '',
+    required this.resenasService,
+    required this.solicitudesService,
+    this.onSolicitudesUpdated,
+    super.key,
+  });
 
   final String initialQuery;
+  final String userRole;
+  final ResenasService resenasService;
+  final SolicitudesService solicitudesService;
+  final Future<void> Function()? onSolicitudesUpdated;
 
   @override
   State<CompaniesScreen> createState() => _CompaniesScreenState();
@@ -72,7 +85,13 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                   value: favoritosController,
                 ),
               ],
-              child: CompanyDetailScreen(company: company),
+              child: CompanyDetailScreen(
+                company: company,
+                userRole: widget.userRole,
+                resenasService: widget.resenasService,
+                solicitudesService: widget.solicitudesService,
+                onSolicitudesUpdated: widget.onSolicitudesUpdated,
+              ),
             ),
           ),
         )
@@ -286,6 +305,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
         return CompanyCard(
           key: ValueKey(company.id),
           company: company,
+          resenasService: widget.resenasService,
           onTap: () => _openCompanyDetail(company),
           showCareerSummary: true,
         );

@@ -1,21 +1,37 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:conecta_utsh/modules/company/components/company_image.dart';
 import 'package:conecta_utsh/modules/company/models/company_model.dart';
 import 'package:conecta_utsh/modules/favoritos/components/favorito_button.dart';
+import 'package:conecta_utsh/modules/resenas/screens/comentarios_empresa_screen.dart';
+import 'package:conecta_utsh/modules/resenas/services/resenas_service.dart';
+import 'package:conecta_utsh/modules/solicitudes/components/solicitud_acciones.dart';
+import 'package:conecta_utsh/modules/solicitudes/services/solicitudes_service.dart';
 
 class CompanyDetailScreen extends StatefulWidget {
-  const CompanyDetailScreen({required this.company, super.key});
+  const CompanyDetailScreen({
+    required this.company,
+    required this.resenasService,
+    required this.solicitudesService,
+    this.userRole = '',
+    this.onSolicitudesUpdated,
+    super.key,
+  });
 
   final CompanyModel company;
+  final ResenasService resenasService;
+  final SolicitudesService solicitudesService;
+  final String userRole;
+  final Future<void> Function()? onSolicitudesUpdated;
 
   @override
   State<CompanyDetailScreen> createState() => _CompanyDetailScreenState();
 }
 
 class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
-  int _selectedTabIndex = 1;
+  int _selectedTabIndex = 0;
 
-  static const _tabs = ['Descripción', 'Requisitos', 'Contacto'];
+  static const _tabs = ['Información', 'Contacto', 'Reseñas'];
 
   String get _companyName {
     final name = widget.company.name?.trim();
@@ -113,21 +129,11 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                               ),
                             ],
                           ),
-                          Container(
-                            width: 78,
-                            height: 78,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              _companyName.substring(0, 1).toUpperCase(),
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: colors.primary,
-                              ),
-                            ),
+                          CompanyImage(
+                            company: company,
+                            size: 78,
+                            featured: true,
+                            circular: true,
                           ),
                           const SizedBox(height: 14),
                           Text(
@@ -242,10 +248,16 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
             ),
           ),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-              child: _buildTabContent(theme, colors),
-            ),
+            child: _selectedTabIndex == 2
+                ? ComentariosEmpresaScreen(
+                    empresaId: company.id,
+                    userRole: widget.userRole,
+                    service: widget.resenasService,
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                    child: _buildTabContent(theme, colors),
+                  ),
           ),
           SafeArea(
             top: false,
@@ -290,26 +302,40 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     final company = widget.company;
     switch (_selectedTabIndex) {
       case 0:
-        return Text(
-          _usable(company.description) ?? 'No hay descripción disponible.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colors.onSurfaceVariant,
-            height: 1.55,
-          ),
-        );
-      case 1:
-        if (company.requirements.isEmpty) {
-          return Text(
-            'No se especificaron requisitos.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
-          );
-        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: company.requirements
-              .map(
+          children: [
+            Text(
+              'Descripción',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _usable(company.description) ?? 'No hay descripción disponible.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colors.onSurfaceVariant,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Requisitos',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (company.requirements.isEmpty)
+              Text(
+                'No se especificaron requisitos.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              )
+            else
+              ...company.requirements.map(
                 (requirement) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Row(
@@ -334,10 +360,17 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
                     ],
                   ),
                 ),
-              )
-              .toList(),
+              ),
+            const SizedBox(height: 20),
+            SolicitudAcciones(
+              company: company,
+              service: widget.solicitudesService,
+              userRole: widget.userRole,
+              onSolicitudesUpdated: widget.onSolicitudesUpdated,
+            ),
+          ],
         );
-      case 2:
+      case 1:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

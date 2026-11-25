@@ -3,12 +3,7 @@ import 'package:conecta_utsh/helpers/providers/providers.dart';
 class SettingsService {
   const SettingsService();
 
-  static const _defaults = <String, bool>{
-    'push_notifications': true,
-    'email_notifications': true,
-    'job_alerts': true,
-    'sound_vibration': false,
-  };
+  static const _defaults = <String, bool>{'push_notifications': true};
 
   Future<Map<String, bool>> loadToggleValues() async {
     await Future<void>.delayed(const Duration(milliseconds: 180));

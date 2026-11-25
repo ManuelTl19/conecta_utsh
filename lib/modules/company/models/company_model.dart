@@ -4,6 +4,7 @@ class CompanyModel {
     this.name,
     this.description,
     this.sector,
+    this.imageUrl,
     this.availableAreas = const [],
     this.location = const CompanyLocation(),
     this.contact = const CompanyContact(),
@@ -18,6 +19,7 @@ class CompanyModel {
   final String? name;
   final String? description;
   final String? sector;
+  final String? imageUrl;
   final List<String> availableAreas;
   final CompanyLocation location;
   final CompanyContact contact;
@@ -37,6 +39,7 @@ class CompanyModel {
       name: _string(json['nombre']),
       description: _string(json['descripcion']),
       sector: _string(json['sector']),
+      imageUrl: _imageUrl(json['imagen']),
       availableAreas: _stringList(json['areasDisponibles']),
       location: CompanyLocation.fromJson(
         location is Map<String, dynamic> ? location : const {},
@@ -49,14 +52,18 @@ class CompanyModel {
       registeredAt: registeredAt is String
           ? DateTime.tryParse(registeredAt)
           : null,
-      acceptedAcademicDirections: _stringList(
-        json['direccionesAcademicas'],
-      ),
+      acceptedAcademicDirections: _stringList(json['direccionesAcademicas']),
       acceptedCareers: _stringList(json['carrerasAceptadas']),
     );
   }
 
   static String? _string(Object? value) => value is String ? value : null;
+
+  static String? _imageUrl(Object? value) {
+    if (value is! Map) return null;
+    final url = _string(value['url'])?.trim();
+    return url == null || url.isEmpty ? null : url;
+  }
 
   static List<String> _stringList(Object? value) => value is List
       ? value.whereType<String>().toList(growable: false)
@@ -93,11 +100,10 @@ class CompanyContact {
   final String? email;
   final String? phone;
 
-  factory CompanyContact.fromJson(Map<String, dynamic> json) =>
-      CompanyContact(
-        email: _string(json['correo']),
-        phone: _string(json['telefono']),
-      );
+  factory CompanyContact.fromJson(Map<String, dynamic> json) => CompanyContact(
+    email: _string(json['correo']),
+    phone: _string(json['telefono']),
+  );
 
   static String? _string(Object? value) => value is String ? value : null;
 }

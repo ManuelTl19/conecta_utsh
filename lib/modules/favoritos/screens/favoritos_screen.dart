@@ -8,9 +8,22 @@ import 'package:conecta_utsh/modules/company/providers/company_controller.dart';
 import 'package:conecta_utsh/modules/company/screens/company_details_screen.dart';
 import 'package:conecta_utsh/modules/company/screens/company_screen.dart';
 import 'package:conecta_utsh/modules/favoritos/providers/favoritos_controller.dart';
+import 'package:conecta_utsh/modules/resenas/services/resenas_service.dart';
+import 'package:conecta_utsh/modules/solicitudes/services/solicitudes_service.dart';
 
 class FavoritosScreen extends StatelessWidget {
-  const FavoritosScreen({super.key});
+  const FavoritosScreen({
+    this.userRole = '',
+    required this.resenasService,
+    required this.solicitudesService,
+    this.onSolicitudesUpdated,
+    super.key,
+  });
+
+  final String userRole;
+  final ResenasService resenasService;
+  final SolicitudesService solicitudesService;
+  final Future<void> Function()? onSolicitudesUpdated;
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +140,7 @@ class FavoritosScreen extends StatelessWidget {
           return CompanyListCard(
             key: ValueKey(company.id),
             company: company,
+            resenasService: resenasService,
             onTap: () => _openCompanyDetail(context, company),
           );
         },
@@ -188,7 +202,13 @@ class FavoritosScreen extends StatelessWidget {
               value: companyController,
             ),
           ],
-          child: CompaniesScreen(initialQuery: companyController.query),
+          child: CompaniesScreen(
+            initialQuery: companyController.query,
+            userRole: userRole,
+            resenasService: resenasService,
+            solicitudesService: solicitudesService,
+            onSolicitudesUpdated: onSolicitudesUpdated,
+          ),
         ),
       ),
     );
@@ -208,7 +228,13 @@ class FavoritosScreen extends StatelessWidget {
               value: companyController,
             ),
           ],
-          child: CompanyDetailScreen(company: company),
+          child: CompanyDetailScreen(
+            company: company,
+            userRole: userRole,
+            resenasService: resenasService,
+            solicitudesService: solicitudesService,
+            onSolicitudesUpdated: onSolicitudesUpdated,
+          ),
         ),
       ),
     );

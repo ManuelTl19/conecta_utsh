@@ -150,9 +150,12 @@ class NotificacionesService {
       if (error.statusCode == HttpStatus.unauthorized) {
         await _handleUnauthorized();
       }
+      final serverMessage = error.message.trim();
       throw NotificationApiException(
         statusCode: error.statusCode,
-        message: _messageForStatus(error.statusCode),
+        message: serverMessage.isNotEmpty
+            ? serverMessage
+            : _messageForStatus(error.statusCode),
       );
     } on StateError {
       await _handleUnauthorized();

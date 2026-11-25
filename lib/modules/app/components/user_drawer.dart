@@ -9,6 +9,7 @@ class UserDrawer extends StatelessWidget {
     required this.onSettings,
     required this.onLogout,
     required this.onOption,
+    this.showStudentOptions = false,
     super.key,
   });
 
@@ -18,14 +19,30 @@ class UserDrawer extends StatelessWidget {
   final VoidCallback onSettings;
   final VoidCallback onLogout;
   final ValueChanged<String> onOption;
+  final bool showStudentOptions;
 
   static const _options = [
-    ('Información personal', Icons.badge_outlined),
-    ('Aplicantes', Icons.assignment_ind_outlined),
-    ('Proposals', Icons.assignment_outlined),
-    ('Resumen', Icons.description_outlined),
-    ('Portafolio', Icons.work_outline_rounded),
-    ('Cover Letters', Icons.article_outlined),
+    (label: 'Empresas', icon: Icons.business_outlined, studentOnly: false),
+    (
+      label: 'Mis solicitudes',
+      icon: Icons.assignment_outlined,
+      studentOnly: true,
+    ),
+    (
+      label: 'Mis citas',
+      icon: Icons.calendar_month_outlined,
+      studentOnly: false,
+    ),
+    (
+      label: 'Mis empresas favoritas',
+      icon: Icons.favorite_border_rounded,
+      studentOnly: true,
+    ),
+    (
+      label: 'Notificaciones',
+      icon: Icons.notifications_outlined,
+      studentOnly: false,
+    ),
   ];
 
   @override
@@ -68,9 +85,9 @@ class UserDrawer extends StatelessWidget {
               ],
             ),
             TextButton(
-              onPressed: () => onOption('Ver perfil'),
+              onPressed: () => onOption('Mi perfil'),
               child: Text(
-                'Ver perfil',
+                'Mi perfil',
                 style: Theme.of(context).textTheme.labelLarge
                     ?.copyWith(color: colors.primary),
               ),
@@ -80,12 +97,13 @@ class UserDrawer extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 children: [
-                  for (final (label, icon) in _options)
-                    _DrawerItem(
-                      label: label,
-                      icon: icon,
-                      onTap: () => onOption(label),
-                    ),
+                  for (final option in _options)
+                    if (showStudentOptions || !option.studentOnly)
+                      _DrawerItem(
+                        label: option.label,
+                        icon: option.icon,
+                        onTap: () => onOption(option.label),
+                      ),
                   _DrawerItem(
                     label: 'Configuración',
                     icon: Icons.settings_outlined,

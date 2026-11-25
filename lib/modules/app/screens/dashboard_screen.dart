@@ -8,15 +8,21 @@ import 'package:conecta_utsh/modules/calendar/screens/calendar_screen.dart';
 import 'package:conecta_utsh/modules/app/models/login_response_model.dart';
 import 'package:conecta_utsh/modules/app/screens/home_screen.dart';
 import 'package:conecta_utsh/modules/app/screens/login_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/change_password_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/profile_screen.dart';
 import 'package:conecta_utsh/modules/app/providers/user_profile_controller.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
 import 'package:conecta_utsh/modules/app/services/token_store.dart';
+import 'package:conecta_utsh/modules/app/services/user_profile_service.dart';
 import 'package:conecta_utsh/modules/settings/screens/settings_screen.dart';
 import 'package:conecta_utsh/modules/notifications/providers/notificaciones_controller.dart';
 import 'package:conecta_utsh/modules/notifications/services/notificaciones_service.dart';
 import 'package:conecta_utsh/modules/company/services/company_service.dart';
+import 'package:conecta_utsh/modules/company/providers/company_controller.dart';
 import 'package:conecta_utsh/modules/favoritos/providers/favoritos_controller.dart';
 import 'package:conecta_utsh/modules/favoritos/services/favoritos_service.dart';
+import 'package:conecta_utsh/modules/resenas/services/resenas_service.dart';
+import 'package:conecta_utsh/modules/solicitudes/services/solicitudes_service.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 
 class DashboardController extends ChangeNotifier {
@@ -64,6 +70,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late final NotificacionesController _notificacionesController;
   late final FavoritosController _favoritosController;
   late final UserProfileController _userProfileController;
+  late final UserProfileService _userProfileService;
+  late final ResenasService _resenasService;
+  late final SolicitudesService _solicitudesService;
   bool _isShowingExitDialog = false;
   bool _isLoggingOut = false;
 
@@ -72,6 +81,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _dashboardController = DashboardController();
     _userProfileController = UserProfileController(widget.user);
+    _userProfileService = UserProfileService(
+      authService: widget.authService,
+      onUnauthorized: _handleUnauthorized,
+    );
     _pageController = PageController(
       initialPage: _dashboardController.selectedIndex,
     );
@@ -88,6 +101,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onUnauthorized: _handleUnauthorized,
       ),
       userRole: widget.user.role,
+    );
+    _resenasService = ResenasService(
+      authService: widget.authService,
+      onUnauthorized: _handleUnauthorized,
+    );
+    _solicitudesService = SolicitudesService(
+      authService: widget.authService,
+      onUnauthorized: _handleUnauthorized,
     );
     unawaited(_favoritosController.cargar());
   }
@@ -128,6 +149,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ChangeNotifierProvider<UserProfileController>.value(
           value: _userProfileController,
         ),
+        Provider<ResenasService>.value(value: _resenasService),
+        Provider<SolicitudesService>.value(value: _solicitudesService),
       ],
       child: PopScope(
         canPop: false,
@@ -148,15 +171,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       HomeScreen(
                         user: widget.user,
                         authService: widget.authService,
+                        solicitudesService: _solicitudesService,
                         companyService: widget.companyService,
                         onSettings: () => _dashboardController.selectTab(2),
+                        onCalendar: () => _dashboardController.selectTab(0),
                         onLogout: _logout,
                         onUnauthorized: _handleUnauthorized,
                         onAccountDeleted: _handleAccountDeleted,
                       ),
                       SettingsScreen(
                         onLogout: _logout,
-                        onBack: () => _dashboardController.selectTab(1),
+                        onOpenProfile: _openProfileFromSettings,
+                        onChangePassword: _changePasswordFromSettings,
+                        email: widget.user.email,
                       ),
                     ],
                   ),
@@ -188,6 +215,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await Dialogs.exitDialog(context);
     } finally {
       _isShowingExitDialog = false;
+    }
+  }
+
+  Future<void> _openProfileFromSettings() async {
+    final companyController = CompanyController(
+      service:
+          widget.companyService ??
+          CompanyService(
+            authService: widget.authService,
+            onUnauthorized: _handleUnauthorized,
+          ),
+      favoritosController: _favoritosController,
+    );
+    try {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => MultiProvider(
+            providers: [
+              ChangeNotifierProvider<NotificacionesController>.value(
+                value: _notificacionesController,
+              ),
+              ChangeNotifierProvider<CompanyController>.value(
+                value: companyController,
+              ),
+              ChangeNotifierProvider<FavoritosController>.value(
+                value: _favoritosController,
+              ),
+              ChangeNotifierProvider<UserProfileController>.value(
+                value: _userProfileController,
+              ),
+            ],
+            child: ProfileScreen(
+              authService: widget.authService,
+              onLogout: _logout,
+              onUnauthorized: _handleUnauthorized,
+              onAccountDeleted: _handleAccountDeleted,
+              profileController: _userProfileController,
+              resenasService: _resenasService,
+              solicitudesService: _solicitudesService,
+              onSolicitudesUpdated: _notificacionesController.refreshCount,
+              userRole: widget.user.role,
+            ),
+          ),
+        ),
+      );
+    } finally {
+      companyController.dispose();
+    }
+  }
+
+  Future<void> _changePasswordFromSettings() async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) =>
+            ChangePasswordScreen(profileService: _userProfileService),
+      ),
+    );
+    if (changed == true && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Contraseña actualizada')));
     }
   }
 

@@ -21,9 +21,13 @@ import 'package:conecta_utsh/modules/company/screens/company_details_screen.dart
 import 'package:conecta_utsh/modules/company/screens/company_screen.dart';
 import 'package:conecta_utsh/modules/company/services/company_service.dart';
 import 'package:conecta_utsh/modules/favoritos/providers/favoritos_controller.dart';
+import 'package:conecta_utsh/modules/favoritos/screens/favoritos_screen.dart';
 import 'package:conecta_utsh/modules/notifications/components/notification_bell_button.dart';
 import 'package:conecta_utsh/modules/notifications/providers/notificaciones_controller.dart';
 import 'package:conecta_utsh/modules/notifications/screens/notificaciones_screen.dart';
+import 'package:conecta_utsh/modules/resenas/services/resenas_service.dart';
+import 'package:conecta_utsh/modules/solicitudes/screens/mis_solicitudes_screen.dart';
+import 'package:conecta_utsh/modules/solicitudes/services/solicitudes_service.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -31,8 +35,10 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({
     required this.user,
     required this.authService,
+    required this.solicitudesService,
     this.companyService,
     this.onSettings,
+    this.onCalendar,
     this.onLogout,
     this.onUnauthorized,
     this.onAccountDeleted,
@@ -41,8 +47,10 @@ class HomeScreen extends StatefulWidget {
 
   final LoginUserModel user;
   final AuthService authService;
+  final SolicitudesService solicitudesService;
   final CompanyService? companyService;
   final VoidCallback? onSettings;
+  final VoidCallback? onCalendar;
   final Future<void> Function()? onLogout;
   final Future<void> Function()? onUnauthorized;
   final Future<void> Function()? onAccountDeleted;
@@ -153,7 +161,13 @@ class _HomeScreenState extends State<HomeScreen>
               value: _favoritosController,
             ),
           ],
-          child: CompaniesScreen(initialQuery: _companyController.query),
+          child: CompaniesScreen(
+            initialQuery: _companyController.query,
+            userRole: widget.user.role,
+            resenasService: context.read<ResenasService>(),
+            solicitudesService: widget.solicitudesService,
+            onSolicitudesUpdated: _refreshNotificationCount,
+          ),
         ),
       ),
     );
@@ -173,7 +187,13 @@ class _HomeScreenState extends State<HomeScreen>
                   value: _favoritosController,
                 ),
               ],
-              child: CompanyDetailScreen(company: company),
+              child: CompanyDetailScreen(
+                company: company,
+                userRole: widget.user.role,
+                resenasService: context.read<ResenasService>(),
+                solicitudesService: widget.solicitudesService,
+                onSolicitudesUpdated: _refreshNotificationCount,
+              ),
             ),
           ),
         )
@@ -210,6 +230,9 @@ class _HomeScreenState extends State<HomeScreen>
           ],
           child: ProfileScreen(
             authService: widget.authService,
+            resenasService: context.read<ResenasService>(),
+            solicitudesService: widget.solicitudesService,
+            onSolicitudesUpdated: _refreshNotificationCount,
             onLogout: _logout,
             userRole: widget.user.role,
             profileController: userProfileController,
@@ -230,7 +253,35 @@ class _HomeScreenState extends State<HomeScreen>
       MaterialPageRoute<void>(
         builder: (_) => ChangeNotifierProvider<NotificacionesController>.value(
           value: notificationController,
-          child: NotificacionesScreen(userRole: widget.user.role),
+          child: NotificacionesScreen(
+            userRole: widget.user.role,
+            solicitudesService: widget.solicitudesService,
+            resenasService: context.read<ResenasService>(),
+            onSolicitudesUpdated: _refreshNotificationCount,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openFavorites() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider<CompanyController>.value(
+              value: _companyController,
+            ),
+            ChangeNotifierProvider<FavoritosController>.value(
+              value: _favoritosController,
+            ),
+          ],
+          child: FavoritosScreen(
+            userRole: widget.user.role,
+            resenasService: context.read<ResenasService>(),
+            solicitudesService: widget.solicitudesService,
+            onSolicitudesUpdated: _refreshNotificationCount,
+          ),
         ),
       ),
     );
@@ -238,9 +289,57 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _onDrawerOption(String option) {
     setState(() => _isDrawerOpen = false);
-    if (option == 'Ver perfil') {
-      _openProfile();
+    switch (option) {
+      case 'Mi perfil':
+        _openProfile();
+        break;
+      case 'Empresas':
+        _openCompanies();
+        break;
+      case 'Mis solicitudes':
+        _openMyRequests();
+        break;
+      case 'Mis citas':
+        widget.onCalendar?.call();
+        break;
+      case 'Mis empresas favoritas':
+        _openFavorites();
+        break;
+      case 'Notificaciones':
+        _openNotifications();
+        break;
     }
+  }
+
+  Future<void> _confirmLogout() async {
+    setState(() => _isDrawerOpen = false);
+    final confirmed = await Dialogs.showConfirmDialogDelete(
+      context,
+      title: 'Cerrar sesión',
+      message: '¿Deseas salir de tu cuenta?',
+      icon: Icons.logout_rounded,
+      confirmText: 'Cerrar sesión',
+      cancelText: 'Cancelar',
+      confirmColor: Theme.of(context).colorScheme.error,
+      cancelColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+    );
+    if (confirmed == true) await _logout();
+  }
+
+  Future<void> _refreshNotificationCount() =>
+      context.read<NotificacionesController>().refreshCount();
+
+  void _openMyRequests() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MisSolicitudesScreen(
+          service: widget.solicitudesService,
+          resenasService: context.read<ResenasService>(),
+          userRole: widget.user.role,
+          onSolicitudesUpdated: _refreshNotificationCount,
+        ),
+      ),
+    );
   }
 
   @override
@@ -283,14 +382,16 @@ class _HomeScreenState extends State<HomeScreen>
                   width: MediaQuery.sizeOf(context).width * .8,
                   child: UserDrawer(
                     name: widget.user.name,
-                    role: 'UX Designer',
+                    role: widget.user.role,
                     onClose: () => setState(() => _isDrawerOpen = false),
                     onSettings: () {
                       setState(() => _isDrawerOpen = false);
                       widget.onSettings?.call();
                     },
-                    onLogout: _logout,
+                    onLogout: _confirmLogout,
                     onOption: _onDrawerOption,
+                    showStudentOptions:
+                        widget.user.role.trim().toLowerCase() == 'estudiante',
                   ),
                 ),
               ],
@@ -378,6 +479,7 @@ class _HomeScreenState extends State<HomeScreen>
                 FeaturedCompaniesCarousel(
                   companies: featuredCompanies.take(4).toList(),
                   onTap: _openCompanyDetail,
+                  resenasService: context.read<ResenasService>(),
                 )
               else if (_companyController.unfilteredError != null)
                 _CompanyLoadError(
@@ -420,6 +522,7 @@ class _HomeScreenState extends State<HomeScreen>
                     final company = companies[index];
                     return CompanyCard(
                       company: company,
+                      resenasService: context.read<ResenasService>(),
                       onTap: () => _openCompanyDetail(company),
                     );
                   },

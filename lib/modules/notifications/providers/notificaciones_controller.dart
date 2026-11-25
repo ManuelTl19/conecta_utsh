@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import 'package:conecta_utsh/modules/notifications/models/notificacion.dart';
@@ -12,6 +14,7 @@ class NotificacionesController extends ChangeNotifier
     : _service = service {
     WidgetsBinding.instance.addObserver(this);
     refreshCount();
+    _startPolling();
   }
 
   final NotificacionesService _service;
@@ -27,6 +30,7 @@ class NotificacionesController extends ChangeNotifier
   String? _actionError;
   bool _disposed = false;
   int _loadGeneration = 0;
+  Timer? _pollTimer;
   final Set<String> _mutatingIds = {};
 
   List<Notificacion> get notifications => List.unmodifiable(_notifications);
@@ -55,7 +59,21 @@ class NotificacionesController extends ChangeNotifier
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) refreshCount();
+    if (state == AppLifecycleState.resumed) {
+      refreshCount();
+      _startPolling();
+    } else {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    }
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 60),
+      (_) => refreshCount(),
+    );
   }
 
   Future<void> refreshCount() async {
@@ -294,6 +312,7 @@ class NotificacionesController extends ChangeNotifier
   @override
   void dispose() {
     _disposed = true;
+    _pollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

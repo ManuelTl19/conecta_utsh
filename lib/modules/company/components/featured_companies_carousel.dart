@@ -3,16 +3,19 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/modules/company/components/company_cards.dart';
 import 'package:conecta_utsh/modules/company/models/company_model.dart';
+import 'package:conecta_utsh/modules/resenas/services/resenas_service.dart';
 
 class FeaturedCompaniesCarousel extends StatefulWidget {
   const FeaturedCompaniesCarousel({
     required this.companies,
     required this.onTap,
+    required this.resenasService,
     super.key,
   });
 
   final List<CompanyModel> companies;
   final ValueChanged<CompanyModel> onTap;
+  final ResenasService resenasService;
 
   @override
   State<FeaturedCompaniesCarousel> createState() =>
@@ -119,6 +122,7 @@ class _FeaturedCompaniesCarouselState extends State<FeaturedCompaniesCarousel>
                     child: FeaturedCompanyCard(
                       company: company,
                       onTap: () => widget.onTap(company),
+                      resenasService: widget.resenasService,
                     ),
                   ),
                   builder: (context, child) {

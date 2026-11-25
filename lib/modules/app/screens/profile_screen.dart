@@ -18,6 +18,8 @@ import 'package:conecta_utsh/modules/favoritos/screens/favoritos_screen.dart';
 import 'package:conecta_utsh/modules/notifications/components/notification_bell_button.dart';
 import 'package:conecta_utsh/modules/notifications/providers/notificaciones_controller.dart';
 import 'package:conecta_utsh/modules/notifications/screens/notificaciones_screen.dart';
+import 'package:conecta_utsh/modules/resenas/services/resenas_service.dart';
+import 'package:conecta_utsh/modules/solicitudes/services/solicitudes_service.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -27,6 +29,9 @@ class ProfileScreen extends StatefulWidget {
     required this.onUnauthorized,
     required this.onAccountDeleted,
     required this.profileController,
+    required this.resenasService,
+    required this.solicitudesService,
+    required this.onSolicitudesUpdated,
     this.userRole,
     super.key,
   });
@@ -36,6 +41,9 @@ class ProfileScreen extends StatefulWidget {
   final Future<void> Function() onUnauthorized;
   final Future<void> Function() onAccountDeleted;
   final UserProfileController profileController;
+  final ResenasService resenasService;
+  final SolicitudesService solicitudesService;
+  final Future<void> Function() onSolicitudesUpdated;
   final String? userRole;
 
   @override
@@ -165,7 +173,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute<void>(
         builder: (_) => ChangeNotifierProvider<NotificacionesController>.value(
           value: notificationController,
-          child: NotificacionesScreen(userRole: widget.userRole),
+          child: NotificacionesScreen(
+            userRole: widget.userRole,
+            solicitudesService: widget.solicitudesService,
+            resenasService: widget.resenasService,
+            onSolicitudesUpdated: widget.onSolicitudesUpdated,
+          ),
         ),
       ),
     );
@@ -185,7 +198,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               value: companyController,
             ),
           ],
-          child: const FavoritosScreen(),
+          child: FavoritosScreen(
+            userRole: widget.userRole ?? '',
+            resenasService: widget.resenasService,
+            solicitudesService: widget.solicitudesService,
+            onSolicitudesUpdated: widget.onSolicitudesUpdated,
+          ),
         ),
       ),
     );

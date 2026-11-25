@@ -4,17 +4,23 @@ import 'package:conecta_utsh/modules/app/components/quick_menu.dart';
 import 'package:conecta_utsh/modules/settings/components/settings_components.dart';
 import 'package:conecta_utsh/modules/settings/models/settings_option_model.dart';
 import 'package:conecta_utsh/modules/settings/services/settings_service.dart';
+import 'package:conecta_utsh/modules/settings/screens/help_center_screen.dart';
+import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.onLogout,
-    this.onBack,
+    required this.onOpenProfile,
+    required this.onChangePassword,
+    required this.email,
     this.settingsService = const SettingsService(),
     super.key,
   });
 
-  final VoidCallback onLogout;
-  final VoidCallback? onBack;
+  final Future<void> Function() onLogout;
+  final VoidCallback onOpenProfile;
+  final VoidCallback onChangePassword;
+  final String email;
   final SettingsService settingsService;
 
   @override
@@ -82,7 +88,62 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   void _onOptionPressed(SettingsOptionModel option) {
-    // TODO: conectar cada opción de navegación con su pantalla o acción.
+    switch (option.id) {
+      case 'profile':
+        widget.onOpenProfile();
+        break;
+      case 'password':
+        widget.onChangePassword();
+        break;
+      case 'email':
+        _showEmail();
+        break;
+      case 'help':
+        Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(builder: (_) => const HelpCenterScreen()),
+        );
+        break;
+      case 'about':
+        showAboutDialog(
+          context: context,
+          applicationName: 'Conecta UTSH',
+          applicationVersion: '0.1.0+1',
+          applicationIcon: const Icon(Icons.hub_outlined, size: 36),
+        );
+        break;
+    }
+  }
+
+  Future<void> _showEmail() => showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Correo electrónico'),
+      content: Text(
+        widget.email.isEmpty
+            ? 'No hay un correo registrado en esta sesión.'
+            : widget.email,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar'),
+        ),
+      ],
+    ),
+  );
+
+  Future<void> _confirmLogout() async {
+    final confirmed = await Dialogs.showConfirmDialogDelete(
+      context,
+      title: 'Cerrar sesión',
+      message: '¿Deseas salir de tu cuenta?',
+      icon: Icons.logout_rounded,
+      confirmText: 'Cerrar sesión',
+      cancelText: 'Cancelar',
+      confirmColor: Theme.of(context).colorScheme.error,
+      cancelColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+    );
+    if (confirmed == true) await widget.onLogout();
   }
 
   @override
@@ -99,30 +160,16 @@ class _SettingsScreenState extends State<SettingsScreen>
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 9),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Regresar',
-                    onPressed:
-                        widget.onBack ?? () => Navigator.of(context).maybePop(),
-                    icon: Icon(
-                      Icons.arrow_back_rounded,
-                      color: colors.onSurface,
-                    ),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 9),
+              child: Center(
+                child: Text(
+                  'Configuraciones',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: colors.onSurface,
+                    fontWeight: FontWeight.w700,
                   ),
-                  Expanded(
-                    child: Text(
-                      'Configuraciones',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: colors.onSurface,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
+                ),
               ),
             ),
             Expanded(
@@ -168,7 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                           value: false,
                           destructive: true,
                           onToggle: () {},
-                          onPressed: widget.onLogout,
+                          onPressed: _confirmLogout,
                         ),
                         SizedBox(height: QuickMenu.reservedHeight(context) + 8),
                       ],

@@ -1,17 +1,23 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/helpers/style.dart';
+import 'package:conecta_utsh/modules/company/components/company_image.dart';
 import 'package:conecta_utsh/modules/company/models/company_model.dart';
 import 'package:conecta_utsh/modules/favoritos/components/favorito_button.dart';
+import 'package:conecta_utsh/modules/resenas/components/estrellas.dart';
+import 'package:conecta_utsh/modules/resenas/models/resumen_model.dart';
+import 'package:conecta_utsh/modules/resenas/services/resenas_service.dart';
 
 class FeaturedCompanyCard extends StatelessWidget {
   const FeaturedCompanyCard({
     required this.company,
     required this.onTap,
+    required this.resenasService,
     super.key,
   });
 
   final CompanyModel company;
   final VoidCallback onTap;
+  final ResenasService resenasService;
 
   String get _name => _companyName(company);
 
@@ -76,7 +82,7 @@ class FeaturedCompanyCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      _Initial(company: company, size: 36, featured: true),
+                      CompanyImage(company: company, size: 36, featured: true),
                       const SizedBox(width: 9),
                       Expanded(
                         child: Column(
@@ -91,13 +97,11 @@ class FeaturedCompanyCard extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            Text(
-                              _optionalText(company.sector) ??
-                                  'Sector no especificado',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colors.onPrimary.withValues(alpha: .78),
+                            _CompanyRating(
+                              companyId: company.id,
+                              service: resenasService,
+                              foregroundColor: colors.onPrimary.withValues(
+                                alpha: .9,
                               ),
                             ),
                           ],
@@ -155,12 +159,14 @@ class FeaturedCompanyCard extends StatelessWidget {
 class CompanyCard extends StatelessWidget {
   const CompanyCard({
     required this.company,
+    required this.resenasService,
     this.onTap,
     this.showCareerSummary = false,
     super.key,
   });
 
   final CompanyModel company;
+  final ResenasService resenasService;
   final VoidCallback? onTap;
   final bool showCareerSummary;
 
@@ -219,7 +225,7 @@ class CompanyCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      _Initial(company: company, size: 40),
+                      CompanyImage(company: company, size: 40),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -234,14 +240,10 @@ class CompanyCard extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            Text(
-                              _optionalText(company.sector) ??
-                                  'Sector no especificado',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colors.onSurfaceVariant,
-                              ),
+                            _CompanyRating(
+                              companyId: company.id,
+                              service: resenasService,
+                              foregroundColor: colors.onSurfaceVariant,
                             ),
                           ],
                         ),
@@ -315,11 +317,13 @@ class CompanyListCard extends StatelessWidget {
   const CompanyListCard({
     required this.company,
     required this.onTap,
+    required this.resenasService,
     super.key,
   });
 
   final CompanyModel company;
   final VoidCallback onTap;
+  final ResenasService resenasService;
 
   @override
   Widget build(BuildContext context) {
@@ -342,7 +346,6 @@ class CompanyListCard extends StatelessWidget {
       explicitChildNodes: true,
       label: [
         _companyName(company),
-        _optionalText(company.sector),
         _companyLocation(company),
       ].whereType<String>().join(', '),
       child: Card(
@@ -363,7 +366,7 @@ class CompanyListCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _Initial(company: company, size: 48),
+                    CompanyImage(company: company, size: 48),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -378,17 +381,11 @@ class CompanyListCard extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            [
-                              _optionalText(company.sector),
-                              _companyLocation(company),
-                            ].whereType<String>().join(' · '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colors.onSurfaceVariant,
-                            ),
+                          const SizedBox(height: 4),
+                          _CompanyRating(
+                            companyId: company.id,
+                            service: resenasService,
+                            foregroundColor: colors.onSurfaceVariant,
                           ),
                         ],
                       ),
@@ -396,6 +393,29 @@ class CompanyListCard extends StatelessWidget {
                     FavoritoButton(company: company),
                   ],
                 ),
+                if (_companyLocation(company).isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        color: colors.onSurfaceVariant,
+                        size: 15,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          _companyLocation(company),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (areas.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Wrap(
@@ -459,34 +479,155 @@ class CompanyListCard extends StatelessWidget {
   }
 }
 
-class _Initial extends StatelessWidget {
-  const _Initial({
-    required this.company,
-    required this.size,
-    this.featured = false,
+class _CompanyRating extends StatefulWidget {
+  const _CompanyRating({
+    required this.companyId,
+    required this.service,
+    required this.foregroundColor,
   });
 
-  final CompanyModel company;
-  final double size;
-  final bool featured;
+  final String companyId;
+  final ResenasService service;
+  final Color foregroundColor;
+
+  @override
+  State<_CompanyRating> createState() => _CompanyRatingState();
+}
+
+class _CompanyRatingState extends State<_CompanyRating> {
+  Future<ResumenModel>? _summaryFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSummary();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CompanyRating oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.companyId != widget.companyId ||
+        oldWidget.service != widget.service) {
+      _loadSummary();
+    }
+  }
+
+  void _loadSummary() {
+    final companyId = widget.companyId.trim();
+    _summaryFuture = companyId.isEmpty
+        ? null
+        : widget.service.resumen(companyId);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final initial = _companyName(company).substring(0, 1).toUpperCase();
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: featured ? colors.onPrimary : colors.primaryContainer,
-        borderRadius: Style.getCircularBorderRadius(12),
-      ),
-      child: Text(
-        initial,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: featured ? colors.primary : colors.onPrimaryContainer,
-          fontWeight: FontWeight.w700,
+    final theme = Theme.of(context);
+    final future = _summaryFuture;
+    if (future == null) {
+      return _RatingLabel(
+        label: 'Calificación no disponible',
+        foregroundColor: widget.foregroundColor,
+      );
+    }
+
+    return FutureBuilder<ResumenModel>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Tooltip(
+            message: snapshot.error.toString(),
+            child: _RatingLabel(
+              label: 'Calificación no disponible',
+              foregroundColor: widget.foregroundColor,
+            ),
+          );
+        }
+        final summary = snapshot.data;
+        if (summary == null) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: widget.foregroundColor,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                'Cargando calificación',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: widget.foregroundColor,
+                ),
+              ),
+            ],
+          );
+        }
+        if (summary.totalCalificaciones == 0) {
+          return _RatingLabel(
+            label: 'Sin calificaciones',
+            foregroundColor: widget.foregroundColor,
+          );
+        }
+        return _RatingLabel(
+          label:
+              '${summary.promedio.toStringAsFixed(1)} (${summary.totalCalificaciones})',
+          foregroundColor: widget.foregroundColor,
+          calificacion: summary.promedio,
+          semanticLabel:
+              'Calificación promedio ${summary.promedio.toStringAsFixed(1)} de 5, ${summary.totalCalificaciones} calificaciones',
+        );
+      },
+    );
+  }
+}
+
+class _RatingLabel extends StatelessWidget {
+  const _RatingLabel({
+    required this.label,
+    required this.foregroundColor,
+    this.semanticLabel,
+    this.calificacion,
+  });
+
+  final String label;
+  final Color foregroundColor;
+  final String? semanticLabel;
+  final double? calificacion;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      label: semanticLabel ?? label,
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (calificacion case final value?)
+              Estrellas(calificacion: value, size: 12)
+            else
+              Icon(
+                Icons.star_outline_rounded,
+                size: 14,
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
+            const SizedBox(width: 3),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: foregroundColor,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

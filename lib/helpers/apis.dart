@@ -1,5 +1,5 @@
 class Apis {
-  static const String baseUrl = 'http://192.168.1.10:3000';
+  static const String baseUrl = 'http://192.168.1.3:3000';
 
   static final Uri login = Uri.parse('$baseUrl/api/auth/login');
   static final Uri register = Uri.parse('$baseUrl/api/auth/register');
@@ -32,10 +32,43 @@ class Apis {
     '$baseUrl/api/notificaciones/leer-todas',
   );
   static final Uri favoritos = Uri.parse('$baseUrl/api/favoritos');
+  static final Uri comentarios = Uri.parse('$baseUrl/api/comentarios');
+  static final Uri solicitudes = Uri.parse('$baseUrl/api/solicitudes');
+  static final Uri misSolicitudes = Uri.parse(
+    '$baseUrl/api/solicitudes/mis-solicitudes',
+  );
 
   static Uri favoritoPorEmpresa(String empresaId) =>
       Uri.parse('$baseUrl/api/favoritos/$empresaId');
 
   static Uri verificarFavorito(String empresaId) =>
       Uri.parse('$baseUrl/api/favoritos/$empresaId/verificar');
+
+  static Uri comentariosEmpresa(String empresaId) => Uri.parse(
+    '$baseUrl/api/comentarios?empresaId=${Uri.encodeQueryComponent(empresaId)}',
+  );
+
+  static Uri resumenComentarios(String empresaId) => Uri.parse(
+    '$baseUrl/api/comentarios/empresa/${Uri.encodeComponent(empresaId)}/resumen',
+  );
+
+  static Uri miComentario(String empresaId) => Uri.parse(
+    '$baseUrl/api/comentarios/empresa/${Uri.encodeComponent(empresaId)}/mi-comentario',
+  );
+
+  static Uri permisoComentario(String empresaId) => Uri.parse(
+    '$baseUrl/api/comentarios/empresa/${Uri.encodeComponent(empresaId)}/puede-calificar',
+  );
+
+  static Uri comentario(String comentarioId) => Uri.parse(
+    '$baseUrl/api/comentarios/${Uri.encodeComponent(comentarioId)}',
+  );
+
+  static Uri solicitud(String solicitudId) => solicitudes.replace(
+    pathSegments: [...solicitudes.pathSegments, solicitudId],
+  );
+
+  static Uri estadoSolicitud(String solicitudId) => solicitudes.replace(
+    pathSegments: [...solicitudes.pathSegments, solicitudId, 'estado'],
+  );
 }

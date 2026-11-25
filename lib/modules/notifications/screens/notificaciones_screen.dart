@@ -8,11 +8,23 @@ import 'package:conecta_utsh/modules/notifications/components/notificacion_card.
 import 'package:conecta_utsh/modules/notifications/models/notificacion.dart';
 import 'package:conecta_utsh/modules/notifications/providers/notificaciones_controller.dart';
 import 'package:conecta_utsh/modules/notifications/services/notificaciones_service.dart';
+import 'package:conecta_utsh/modules/resenas/services/resenas_service.dart';
+import 'package:conecta_utsh/modules/solicitudes/screens/solicitud_detalle_screen.dart';
+import 'package:conecta_utsh/modules/solicitudes/services/solicitudes_service.dart';
 
 class NotificacionesScreen extends StatefulWidget {
-  const NotificacionesScreen({this.userRole, super.key});
+  const NotificacionesScreen({
+    required this.solicitudesService,
+    required this.resenasService,
+    required this.onSolicitudesUpdated,
+    this.userRole,
+    super.key,
+  });
 
   final String? userRole;
+  final SolicitudesService solicitudesService;
+  final ResenasService resenasService;
+  final Future<void> Function() onSolicitudesUpdated;
 
   @override
   State<NotificacionesScreen> createState() => _NotificacionesScreenState();
@@ -77,11 +89,17 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     try {
       final current = await _controller.obtenerPorId(notification.id);
       if (!mounted) return;
-      await navegarAReferencia(context, current, userRole: widget.userRole);
+      await navegarAReferencia(
+        context,
+        current,
+        userRole: widget.userRole,
+        solicitudesService: widget.solicitudesService,
+        resenasService: widget.resenasService,
+      );
     } on NotificationApiException catch (error) {
       if (error.statusCode == 404) {
         _controller.removeIfNotFound(notification.id);
-        if (mounted) _showSnack('Este elemento ya no está disponible');
+        if (mounted) _showSnack(error.message);
       } else if (mounted) {
         _showSnack(error.message);
       }
@@ -408,6 +426,8 @@ Future<void> navegarAReferencia(
   BuildContext context,
   Notificacion notification, {
   String? userRole,
+  required SolicitudesService solicitudesService,
+  required ResenasService resenasService,
 }) async {
   if (!context.mounted) return;
   final model = notification.referenciaModelo?.toLowerCase();
@@ -418,7 +438,25 @@ Future<void> navegarAReferencia(
       if (role == 'admin' || role == 'administrador') return;
       return;
     case 'solicitud':
-      // TODO: Navegar al detalle del proceso de estadía.
+      final solicitudId = notification.referenciaId;
+      if (solicitudId == null || solicitudId.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('La notificación no contiene una solicitud.'),
+          ),
+        );
+        return;
+      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => SolicitudDetalleScreen(
+            solicitudId: solicitudId,
+            service: solicitudesService,
+            resenasService: resenasService,
+            userRole: userRole ?? '',
+          ),
+        ),
+      );
       return;
     case 'empresa':
       // TODO: Cargar la empresa con el servicio existente y abrir su detalle.
