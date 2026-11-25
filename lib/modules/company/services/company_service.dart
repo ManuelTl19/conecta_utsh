@@ -1,168 +1,142 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:conecta_utsh/helpers/apis.dart';
+import 'package:conecta_utsh/modules/app/services/auth_service.dart';
+import 'package:conecta_utsh/modules/app/services/token_store.dart';
 import 'package:conecta_utsh/modules/company/models/company_model.dart';
 
 class CompanyService {
-  const CompanyService();
+  CompanyService({
+    required AuthService authService,
+    this.onUnauthorized,
+    Uri? endpoint,
+  }) : _authService = authService,
+       _endpoint = endpoint ?? Apis.companies;
 
-  static const List<Map<String, dynamic>> _mockCompanies = [
-    {
-      'id': 'shell',
-      'name': 'Shell plc',
-      'position': 'Junior Executive',
-      'logoKey': 'shell',
-      'salary': 6000,
-      'period': 'al mes',
-      'currency': r'$',
-      'location': 'Pachuca de Soto',
-      'tags': ['Administración', 'Tiempo completo', 'Junior'],
-      'employmentType': 'Tiempo completo',
-      'level': 'Junior',
-      'isFeatured': true,
-      'isSaved': false,
-    },
-    {
-      'id': 'spotify',
-      'name': 'Spotify',
-      'position': 'Sr Developer',
-      'logoKey': 'spotify',
-      'salary': 115000,
-      'period': 'al año',
-      'currency': r'$',
-      'location': 'Ciudad de México',
-      'tags': ['Tecnología', 'Híbrido'],
-      'employmentType': 'Tiempo completo',
-      'level': 'Senior',
-      'isFeatured': false,
-      'isSaved': false,
-    },
-    {
-      'id': 'pinterest',
-      'name': 'Pinterest',
-      'position': 'Jr Executive',
-      'logoKey': 'pinterest',
-      'salary': 96000,
-      'period': 'al año',
-      'currency': r'$',
-      'location': 'Remoto',
-      'tags': ['Diseño', 'Tiempo completo'],
-      'employmentType': 'Tiempo completo',
-      'level': 'Junior',
-      'isFeatured': false,
-      'isSaved': false,
-    },
-    {
-      'id': 'google',
-      'name': 'Google',
-      'position': 'UX Designer',
-      'logoKey': 'google',
-      'salary': 42000,
-      'period': 'al mes',
-      'currency': r'$',
-      'location': 'Ciudad de México',
-      'tags': ['Diseño UX', 'Híbrido'],
-      'employmentType': 'Tiempo completo',
-      'level': 'Intermedio',
-      'isFeatured': true,
-      'isSaved': true,
-    },
-    {
-      'id': 'microsoft',
-      'name': 'Microsoft',
-      'position': 'Software Engineer',
-      'logoKey': 'microsoft',
-      'salary': 38000,
-      'period': 'al mes',
-      'currency': r'$',
-      'location': 'Remoto',
-      'tags': ['Desarrollo', 'Remoto'],
-      'employmentType': 'Tiempo completo',
-      'level': 'Junior',
-      'isFeatured': false,
-      'isSaved': false,
-    },
-    {
-      'id': 'adobe',
-      'name': 'Adobe',
-      'position': 'Diseñador gráfico',
-      'logoKey': 'adobe',
-      'salary': 28000,
-      'period': 'al mes',
-      'currency': r'$',
-      'location': 'Pachuca de Soto',
-      'tags': ['Diseño', 'Presencial'],
-      'employmentType': 'Tiempo completo',
-      'level': 'Intermedio',
-      'isFeatured': false,
-      'isSaved': false,
-    },
-    {
-      'id': 'amazon',
-      'name': 'Amazon',
-      'position': 'Analista de datos',
-      'logoKey': 'amazon',
-      'salary': 32000,
-      'period': 'al mes',
-      'currency': r'$',
-      'location': 'Querétaro',
-      'tags': ['Datos', 'Híbrido'],
-      'employmentType': 'Tiempo completo',
-      'level': 'Junior',
-      'isFeatured': true,
-      'isSaved': false,
-    },
-    {
-      'id': 'uber',
-      'name': 'Uber',
-      'position': 'Product Manager',
-      'logoKey': 'uber',
-      'salary': 45000,
-      'period': 'al mes',
-      'currency': r'$',
-      'location': 'Ciudad de México',
-      'tags': ['Producto', 'Híbrido'],
-      'employmentType': 'Tiempo completo',
-      'level': 'Senior',
-      'isFeatured': false,
-      'isSaved': false,
-    },
-    {
-      'id': 'airbnb',
-      'name': 'Airbnb',
-      'position': 'Marketing Associate',
-      'logoKey': 'airbnb',
-      'salary': 24000,
-      'period': 'al mes',
-      'currency': r'$',
-      'location': 'Remoto',
-      'tags': ['Marketing', 'Remoto'],
-      'employmentType': 'Medio tiempo',
-      'level': 'Junior',
-      'isFeatured': false,
-      'isSaved': false,
-    },
-    {
-      'id': 'canva',
-      'name': 'Canva',
-      'position': 'Frontend Developer',
-      'logoKey': 'canva',
-      'salary': 35000,
-      'period': 'al mes',
-      'currency': r'$',
-      'location': 'Remoto',
-      'tags': ['Desarrollo', 'Remoto'],
-      'employmentType': 'Tiempo completo',
-      'level': 'Intermedio',
-      'isFeatured': false,
-      'isSaved': false,
-    },
-  ];
+  final AuthService _authService;
+  final Future<void> Function()? onUnauthorized;
+  final Uri _endpoint;
+  Future<void>? _unauthorizedTask;
 
-  Future<List<CompanyModel>> getCompanies() async {
-    await Future<void>.delayed(const Duration(milliseconds: 450));
-    return _mockCompanies.map(CompanyModel.fromJson).toList();
+  Future<CompanyListResponse> getCompanies({
+    String? empresa,
+    String? direccionAcademica,
+    String? carrera,
+    String? estado,
+    String? municipio,
+    bool soloFavoritas = false,
+  }) async {
+    final queryParameters = <String, String>{};
+    _addQueryParameter(queryParameters, 'empresa', empresa);
+    _addQueryParameter(
+      queryParameters,
+      'direccionAcademica',
+      direccionAcademica,
+    );
+    _addQueryParameter(queryParameters, 'carrera', carrera);
+    _addQueryParameter(queryParameters, 'estado', estado);
+    _addQueryParameter(queryParameters, 'municipio', municipio);
+    if (soloFavoritas) queryParameters['favoritos'] = 'true';
+
+    final endpoint = queryParameters.isEmpty
+        ? _endpoint
+        : _endpoint.replace(queryParameters: queryParameters);
+
+    try {
+      final responseBody = await _authService.authenticatedRequest(
+        method: 'GET',
+        endpoint: endpoint,
+      );
+      if (responseBody.trim().isEmpty) {
+        throw const FormatException('La respuesta de empresas está vacía.');
+      }
+      final decoded = jsonDecode(responseBody);
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException(
+          'La respuesta de empresas no tiene un formato válido.',
+        );
+      }
+      return CompanyListResponse.fromJson(decoded);
+    } on AuthApiException catch (error) {
+      if (error.statusCode == 401) await _notifyUnauthorized();
+      throw CompanyApiException(
+        statusCode: error.statusCode,
+        message: error.message.trim().isNotEmpty
+            ? error.message
+            : _messageForStatus(error.statusCode),
+      );
+    } on StateError {
+      await _notifyUnauthorized();
+      throw const CompanyApiException(
+        message: 'Tu sesión ha expirado. Inicia sesión de nuevo.',
+      );
+    } on TokenStorageException catch (error) {
+      throw CompanyApiException(
+        message: 'No se pudo acceder a tu sesión: ${error.message}',
+      );
+    } on FormatException {
+      throw const CompanyApiException(
+        message: 'El servidor devolvió datos de empresas no válidos.',
+      );
+    } on SocketException {
+      throw const CompanyApiException(
+        message: 'No se pudo conectar con el servidor. Revisa tu conexión.',
+      );
+    } on TimeoutException {
+      throw const CompanyApiException(
+        message: 'La solicitud tardó demasiado. Inténtalo de nuevo.',
+      );
+    } on HttpException {
+      throw const CompanyApiException(
+        message: 'Ocurrió un error al consultar las empresas.',
+      );
+    }
   }
 
-  Future<List<CompanyModel>> getFeaturedCompanies() async {
-    final companies = await getCompanies();
-    return companies.where((company) => company.isFeatured).toList();
+  void _addQueryParameter(
+    Map<String, String> parameters,
+    String key,
+    String? value,
+  ) {
+    final trimmedValue = value?.trim();
+    if (trimmedValue != null && trimmedValue.isNotEmpty) {
+      parameters[key] = trimmedValue;
+    }
   }
+
+  String _messageForStatus(int statusCode) {
+    if (statusCode == 400) {
+      return 'Los filtros enviados no son válidos.';
+    }
+    if (statusCode >= 400 && statusCode < 500) {
+      return 'No se pudieron consultar las empresas (error $statusCode).';
+    }
+    if (statusCode >= 500) {
+      return 'El servidor no pudo completar la solicitud. Inténtalo más tarde.';
+    }
+    return 'No se pudieron consultar las empresas.';
+  }
+
+  Future<void> _notifyUnauthorized() async {
+    final callback = onUnauthorized;
+    if (callback == null) return;
+    _unauthorizedTask ??= callback();
+    try {
+      await _unauthorizedTask;
+    } finally {
+      _unauthorizedTask = null;
+    }
+  }
+}
+
+class CompanyApiException implements Exception {
+  const CompanyApiException({this.statusCode, required this.message});
+
+  final int? statusCode;
+  final String message;
+
+  @override
+  String toString() => message;
 }

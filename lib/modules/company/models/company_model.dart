@@ -1,83 +1,129 @@
 class CompanyModel {
   const CompanyModel({
-    required this.id,
-    required this.name,
-    required this.position,
-    required this.logoKey,
-    required this.salary,
-    required this.period,
-    required this.currency,
-    required this.location,
-    required this.tags,
-    required this.employmentType,
-    required this.level,
-    required this.isFeatured,
-    required this.isSaved,
+    this.id = '',
+    this.name,
+    this.description,
+    this.sector,
+    this.availableAreas = const [],
+    this.location = const CompanyLocation(),
+    this.contact = const CompanyContact(),
+    this.requirements = const [],
+    this.active = false,
+    this.registeredAt,
+    this.acceptedAcademicDirections = const [],
+    this.acceptedCareers = const [],
   });
 
   final String id;
-  final String name;
-  final String position;
-  final String logoKey;
-  final num salary;
-  final String period;
-  final String currency;
-  final String location;
-  final List<String> tags;
-  final String employmentType;
-  final String level;
-  final bool isFeatured;
-  final bool isSaved;
+  final String? name;
+  final String? description;
+  final String? sector;
+  final List<String> availableAreas;
+  final CompanyLocation location;
+  final CompanyContact contact;
+  final List<String> requirements;
+  final bool active;
+  final DateTime? registeredAt;
+  final List<String> acceptedAcademicDirections;
+  final List<String> acceptedCareers;
 
   factory CompanyModel.fromJson(Map<String, dynamic> json) {
-    final tags = json['tags'];
-    if (json['id'] is! String ||
-        json['name'] is! String ||
-        json['position'] is! String ||
-        json['logoKey'] is! String ||
-        json['salary'] is! num ||
-        json['period'] is! String ||
-        json['currency'] is! String ||
-        json['location'] is! String ||
-        tags is! List ||
-        tags.any((tag) => tag is! String) ||
-        json['employmentType'] is! String ||
-        json['level'] is! String ||
-        json['isFeatured'] is! bool ||
-        json['isSaved'] is! bool) {
-      throw const FormatException('Los datos de la empresa no son válidos.');
-    }
+    final location = json['ubicacion'];
+    final contact = json['contacto'];
+    final registeredAt = json['fechaRegistro'];
 
     return CompanyModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      position: json['position'] as String,
-      logoKey: json['logoKey'] as String,
-      salary: json['salary'] as num,
-      period: json['period'] as String,
-      currency: json['currency'] as String,
-      location: json['location'] as String,
-      tags: List<String>.from(tags),
-      employmentType: json['employmentType'] as String,
-      level: json['level'] as String,
-      isFeatured: json['isFeatured'] as bool,
-      isSaved: json['isSaved'] as bool,
+      id: _string(json['_id']) ?? '',
+      name: _string(json['nombre']),
+      description: _string(json['descripcion']),
+      sector: _string(json['sector']),
+      availableAreas: _stringList(json['areasDisponibles']),
+      location: CompanyLocation.fromJson(
+        location is Map<String, dynamic> ? location : const {},
+      ),
+      contact: CompanyContact.fromJson(
+        contact is Map<String, dynamic> ? contact : const {},
+      ),
+      requirements: _stringList(json['requisitos']),
+      active: json['activa'] is bool ? json['activa'] as bool : false,
+      registeredAt: registeredAt is String
+          ? DateTime.tryParse(registeredAt)
+          : null,
+      acceptedAcademicDirections: _stringList(
+        json['direccionesAcademicas'],
+      ),
+      acceptedCareers: _stringList(json['carrerasAceptadas']),
     );
   }
 
-  CompanyModel copyWith({bool? isSaved}) => CompanyModel(
-    id: id,
-    name: name,
-    position: position,
-    logoKey: logoKey,
-    salary: salary,
-    period: period,
-    currency: currency,
-    location: location,
-    tags: tags,
-    employmentType: employmentType,
-    level: level,
-    isFeatured: isFeatured,
-    isSaved: isSaved ?? this.isSaved,
-  );
+  static String? _string(Object? value) => value is String ? value : null;
+
+  static List<String> _stringList(Object? value) => value is List
+      ? value.whereType<String>().toList(growable: false)
+      : const [];
+}
+
+class CompanyLocation {
+  const CompanyLocation({
+    this.address,
+    this.municipality,
+    this.state,
+    this.mapUrl,
+  });
+
+  final String? address;
+  final String? municipality;
+  final String? state;
+  final String? mapUrl;
+
+  factory CompanyLocation.fromJson(Map<String, dynamic> json) =>
+      CompanyLocation(
+        address: _string(json['direccion']),
+        municipality: _string(json['municipio']),
+        state: _string(json['estado']),
+        mapUrl: _string(json['mapaUrl']),
+      );
+
+  static String? _string(Object? value) => value is String ? value : null;
+}
+
+class CompanyContact {
+  const CompanyContact({this.email, this.phone});
+
+  final String? email;
+  final String? phone;
+
+  factory CompanyContact.fromJson(Map<String, dynamic> json) =>
+      CompanyContact(
+        email: _string(json['correo']),
+        phone: _string(json['telefono']),
+      );
+
+  static String? _string(Object? value) => value is String ? value : null;
+}
+
+class CompanyListResponse {
+  const CompanyListResponse({required this.total, required this.companies});
+
+  final int total;
+  final List<CompanyModel> companies;
+
+  factory CompanyListResponse.fromJson(Map<String, dynamic> json) {
+    final rawCompanies = json['empresas'];
+    final rawTotal = json['total'];
+    final total = rawTotal is int ? rawTotal : int.tryParse('$rawTotal');
+    if (rawCompanies is! List || total == null) {
+      throw const FormatException(
+        'La respuesta de empresas no tiene un formato válido.',
+      );
+    }
+
+    return CompanyListResponse(
+      total: total,
+      companies: rawCompanies
+          .whereType<Map<String, dynamic>>()
+          .map(CompanyModel.fromJson)
+          .toList(growable: false),
+    );
+  }
 }

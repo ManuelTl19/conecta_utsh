@@ -3,6 +3,10 @@ import 'dart:ui';
 import 'package:material_ui/material_ui.dart';
 
 class QuickMenu extends StatelessWidget {
+  static const double _menuHeight = 72;
+  static const double _topSpacing = 8;
+  static const double _bottomSpacing = 12;
+
   const QuickMenu({
     required this.selectedIndex,
     required this.onSelected,
@@ -18,18 +22,24 @@ class QuickMenu extends StatelessWidget {
     (icon: Icons.settings_outlined, label: 'Ajustes'),
   ];
 
+  static double reservedHeight(BuildContext context) =>
+      _menuHeight +
+      _topSpacing +
+      _bottomSpacing +
+      MediaQuery.paddingOf(context).bottom;
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final bottomPadding = MediaQuery.paddingOf(context).bottom + 12;
+    final bottomPadding = MediaQuery.paddingOf(context).bottom + _bottomSpacing;
     return Padding(
-      padding: EdgeInsets.fromLTRB(18, 8, 18, bottomPadding),
+      padding: EdgeInsets.fromLTRB(18, _topSpacing, 18, bottomPadding),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: Container(
-            height: 72,
+            height: _menuHeight,
             decoration: BoxDecoration(
               color: colors.surface.withValues(alpha: .42),
               borderRadius: BorderRadius.circular(24),

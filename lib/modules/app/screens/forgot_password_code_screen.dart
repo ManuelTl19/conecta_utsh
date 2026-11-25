@@ -40,10 +40,12 @@ class _ForgotPasswordCodeScreenState extends State<ForgotPasswordCodeScreen> {
   final _passwordController = TextEditingController();
   final _confirmationController = TextEditingController();
   late DateTime _expiresAt;
+  String? _resetToken;
   Timer? _timer;
   Duration _remaining = Duration.zero;
   bool _isExpired = false;
   bool _isCodeConfirmed = false;
+  bool _isVerifyingCode = false;
   bool _isResending = false;
   bool _isSubmitting = false;
   bool _obscurePassword = true;
@@ -110,6 +112,9 @@ class _ForgotPasswordCodeScreenState extends State<ForgotPasswordCodeScreen> {
     if (_isExpired) {
       _timer?.cancel();
       _isCodeConfirmed = false;
+      _resetToken = null;
+      _passwordController.clear();
+      _confirmationController.clear();
       _clearExpiredState();
     }
   }
@@ -142,7 +147,8 @@ class _ForgotPasswordCodeScreenState extends State<ForgotPasswordCodeScreen> {
   }
 
   Future<void> _confirmCode() async {
-    if (_isExpired || !_hasCompleteCode) return;
+    if (_isExpired || _isVerifyingCode || !_hasCompleteCode) return;
+    setState(() => _isVerifyingCode = true);
     try {
       final savedState = await _stateStore.readActive();
       if (savedState == null) {
@@ -153,19 +159,63 @@ class _ForgotPasswordCodeScreenState extends State<ForgotPasswordCodeScreen> {
         );
         return;
       }
-      if (mounted) setState(() => _isCodeConfirmed = true);
+      final verification = await widget.authService.verifyResetCode(
+        VerifyResetCodeRequest(email: widget.state.email, code: _code),
+      );
+      if (mounted && DateTime.now().isBefore(_expiresAt)) {
+        setState(() {
+          _resetToken = verification.resetToken;
+          _expiresAt = DateTime.now().add(
+            Duration(seconds: verification.expiresInSeconds),
+          );
+          _remaining = Duration(seconds: verification.expiresInSeconds);
+          _isCodeConfirmed = true;
+        });
+      }
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      await _showMessage(
+        error.message,
+        title:
+            error.statusCode == HttpStatus.badRequest ||
+                error.statusCode == HttpStatus.unauthorized ||
+                error.statusCode == HttpStatus.unprocessableEntity
+            ? 'Código incorrecto'
+            : 'No se pudo verificar el código',
+      );
+    } on SocketException {
+      if (mounted) {
+        await _showMessage(
+          'No fue posible conectar con el servidor.',
+          title: 'Error de red',
+        );
+      }
+    } on TimeoutException {
+      if (mounted) {
+        await _showMessage(
+          'La solicitud tardó demasiado. Inténtalo otra vez.',
+          title: 'Tiempo de espera agotado',
+        );
+      }
+    } on HttpException catch (error) {
+      if (mounted) await _showMessage(error.message);
+    } on FormatException catch (error) {
+      if (mounted) await _showMessage(error.message);
     } on StateError catch (error) {
       if (mounted) await _showMessage(error.message.toString());
+    } finally {
+      if (mounted) setState(() => _isVerifyingCode = false);
     }
   }
 
-  void _editCode() {
-    setState(() => _isCodeConfirmed = false);
-    _focusNodes.last.requestFocus();
-  }
-
   Future<void> _submitPassword() async {
-    if (_isSubmitting || !_isCodeConfirmed || _isExpired) return;
+    final resetToken = _resetToken;
+    if (_isSubmitting ||
+        !_isCodeConfirmed ||
+        _isExpired ||
+        resetToken == null) {
+      return;
+    }
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isSubmitting = true);
@@ -173,11 +223,12 @@ class _ForgotPasswordCodeScreenState extends State<ForgotPasswordCodeScreen> {
       await widget.authService.resetPassword(
         ResetPasswordRequest(
           email: widget.state.email,
-          code: _code,
-          password: _passwordController.text.trim(),
+          resetToken: resetToken,
+          newPassword: _passwordController.text.trim(),
           confirmPassword: _confirmationController.text.trim(),
         ),
       );
+      _resetToken = null;
       await _stateStore.clear();
       if (!mounted) return;
       await _showMessage(
@@ -212,7 +263,10 @@ class _ForgotPasswordCodeScreenState extends State<ForgotPasswordCodeScreen> {
         _timer?.cancel();
         await _clearExpiredState();
       } else if (incorrect) {
-        setState(() => _isCodeConfirmed = false);
+        setState(() {
+          _isCodeConfirmed = false;
+          _resetToken = null;
+        });
       }
       await _showMessage(
         error.message,
@@ -264,6 +318,7 @@ class _ForgotPasswordCodeScreenState extends State<ForgotPasswordCodeScreen> {
       _timer?.cancel();
       _isExpired = false;
       _isCodeConfirmed = false;
+      _resetToken = null;
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         _updateRemaining();
       });
@@ -479,7 +534,10 @@ class _ForgotPasswordCodeScreenState extends State<ForgotPasswordCodeScreen> {
                       child: TextField(
                         controller: _controllers[index],
                         focusNode: _focusNodes[index],
-                        enabled: !_isExpired && !_isCodeConfirmed,
+                        enabled:
+                            !_isExpired &&
+                            !_isCodeConfirmed &&
+                            !_isVerifyingCode,
                         textAlign: TextAlign.center,
                         keyboardType: TextInputType.number,
                         textInputAction: TextInputAction.next,
@@ -522,24 +580,26 @@ class _ForgotPasswordCodeScreenState extends State<ForgotPasswordCodeScreen> {
                 ),
               ),
             ),
-            if (_isCodeConfirmed && !_isExpired) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _editCode,
-                  child: Text(
-                    'Editar código',
-                    style: Style.getHeaderThree(color: Style.getPrimaryColor()),
-                  ),
-                ),
-              ),
-            ],
+            // if (_isCodeConfirmed && !_isExpired) ...[
+            //   const SizedBox(height: 8),
+            //   Align(
+            //     alignment: Alignment.centerRight,
+            //     child: TextButton(
+            //       onPressed: _editCode,
+            //       child: Text(
+            //         'Editar código',
+            //         style: Style.getHeaderThree(color: Style.getPrimaryColor()),
+            //       ),
+            //     ),
+            //   ),
+            // ],
             const SizedBox(height: 12),
             if (!_isExpired && !_isCodeConfirmed)
               PrimaryButton(
-                label: 'Confirmar código',
-                onPressed: _hasCompleteCode ? _confirmCode : null,
+                label: _isVerifyingCode ? 'Verificando...' : 'Confirmar código',
+                onPressed: _hasCompleteCode && !_isVerifyingCode
+                    ? _confirmCode
+                    : null,
               ),
             if (_isExpired) ...[
               PrimaryButton(

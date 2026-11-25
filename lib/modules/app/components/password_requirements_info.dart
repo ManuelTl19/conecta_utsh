@@ -14,8 +14,10 @@ class PasswordRequirementsInfo extends StatelessWidget {
       message:
           '• Mínimo 8 caracteres\n'
           '• Al menos una mayúscula\n'
+          '• Al menos una minúscula\n'
           '• Al menos un número\n'
-          '• Al menos un carácter especial',
+          '• Al menos un carácter especial\n'
+          '• Sin espacios',
       color: Style.getInfoColor(),
     ),
     icon: Icon(

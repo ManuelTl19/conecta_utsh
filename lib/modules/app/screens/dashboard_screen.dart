@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:conecta_utsh/helpers/providers/app_settings.dart';
@@ -5,9 +7,16 @@ import 'package:conecta_utsh/modules/app/components/quick_menu.dart';
 import 'package:conecta_utsh/modules/calendar/screens/calendar_screen.dart';
 import 'package:conecta_utsh/modules/app/models/login_response_model.dart';
 import 'package:conecta_utsh/modules/app/screens/home_screen.dart';
+import 'package:conecta_utsh/modules/app/screens/login_screen.dart';
+import 'package:conecta_utsh/modules/app/providers/user_profile_controller.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
 import 'package:conecta_utsh/modules/app/services/token_store.dart';
 import 'package:conecta_utsh/modules/settings/screens/settings_screen.dart';
+import 'package:conecta_utsh/modules/notifications/providers/notificaciones_controller.dart';
+import 'package:conecta_utsh/modules/notifications/services/notificaciones_service.dart';
+import 'package:conecta_utsh/modules/company/services/company_service.dart';
+import 'package:conecta_utsh/modules/favoritos/providers/favoritos_controller.dart';
+import 'package:conecta_utsh/modules/favoritos/services/favoritos_service.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 
 class DashboardController extends ChangeNotifier {
@@ -37,11 +46,13 @@ class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     required this.user,
     required this.authService,
+    this.companyService,
     super.key,
   });
 
   final LoginUserModel user;
   final AuthService authService;
+  final CompanyService? companyService;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -50,16 +61,35 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   late final DashboardController _dashboardController;
   late final PageController _pageController;
+  late final NotificacionesController _notificacionesController;
+  late final FavoritosController _favoritosController;
+  late final UserProfileController _userProfileController;
   bool _isShowingExitDialog = false;
-  
+  bool _isLoggingOut = false;
+
   @override
   void initState() {
     super.initState();
     _dashboardController = DashboardController();
+    _userProfileController = UserProfileController(widget.user);
     _pageController = PageController(
       initialPage: _dashboardController.selectedIndex,
     );
     _dashboardController._onSelectionChanged = _animateToSelectedTab;
+    _notificacionesController = NotificacionesController(
+      service: NotificacionesService(
+        authService: widget.authService,
+        onUnauthorized: _handleUnauthorized,
+      ),
+    );
+    _favoritosController = FavoritosController(
+      service: FavoritosService(
+        authService: widget.authService,
+        onUnauthorized: _handleUnauthorized,
+      ),
+      userRole: widget.user.role,
+    );
+    unawaited(_favoritosController.cargar());
   }
 
   void _animateToSelectedTab() {
@@ -75,14 +105,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _dashboardController._onSelectionChanged = null;
     _dashboardController.dispose();
+    _notificacionesController.dispose();
+    _favoritosController.dispose();
+    _userProfileController.dispose();
     _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<DashboardController>.value(
-      value: _dashboardController,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<DashboardController>.value(
+          value: _dashboardController,
+        ),
+        ChangeNotifierProvider<NotificacionesController>.value(
+          value: _notificacionesController,
+        ),
+        ChangeNotifierProvider<FavoritosController>.value(
+          value: _favoritosController,
+        ),
+        ChangeNotifierProvider<UserProfileController>.value(
+          value: _userProfileController,
+        ),
+      ],
       child: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {
@@ -102,8 +148,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       HomeScreen(
                         user: widget.user,
                         authService: widget.authService,
+                        companyService: widget.companyService,
                         onSettings: () => _dashboardController.selectTab(2),
                         onLogout: _logout,
+                        onUnauthorized: _handleUnauthorized,
+                        onAccountDeleted: _handleAccountDeleted,
                       ),
                       SettingsScreen(
                         onLogout: _logout,
@@ -143,12 +192,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _logout() async {
+    if (_isLoggingOut) return;
+    _isLoggingOut = true;
     try {
       await widget.authService.logout();
       if (!mounted) return;
+      _clearSessionState();
       AppSettings.isSignedIn = false;
       AppSettings.loginDate = null;
-      Navigator.of(context).pop();
+      Navigator.of(context).pushAndRemoveUntil<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => LoginScreen(authService: widget.authService),
+        ),
+        (_) => false,
+      );
     } on TokenStorageException catch (error) {
       if (!mounted) return;
       await Dialogs.showSimpleDialog(
@@ -159,6 +216,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
         color: Theme.of(context).colorScheme.error,
         duration: 2200,
       );
+    } finally {
+      _isLoggingOut = false;
     }
+  }
+
+  Future<void> _handleUnauthorized() async {
+    if (_isLoggingOut) return;
+    _isLoggingOut = true;
+    try {
+      await widget.authService.logout();
+      if (!mounted) return;
+      _clearSessionState();
+      AppSettings.isSignedIn = false;
+      AppSettings.loginDate = null;
+      Navigator.of(context).pushAndRemoveUntil<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => LoginScreen(authService: widget.authService),
+        ),
+        (_) => false,
+      );
+    } on TokenStorageException catch (error) {
+      if (!mounted) return;
+      await Dialogs.showSimpleDialog(
+        context,
+        title: 'No se pudo cerrar sesión',
+        message: error.message,
+        icon: Icons.error_outline_rounded,
+        color: Theme.of(context).colorScheme.error,
+        duration: 2200,
+      );
+    } finally {
+      _isLoggingOut = false;
+    }
+  }
+
+  Future<void> _handleAccountDeleted() async {
+    if (_isLoggingOut) return;
+    _isLoggingOut = true;
+    try {
+      await widget.authService.logout();
+      if (!mounted) return;
+      _clearSessionState();
+      AppSettings.isSignedIn = false;
+      AppSettings.loginDate = null;
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.of(context).pushAndRemoveUntil<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => LoginScreen(authService: widget.authService),
+        ),
+        (_) => false,
+      );
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Tu cuenta fue eliminada')),
+      );
+    } on TokenStorageException catch (error) {
+      if (!mounted) return;
+      await Dialogs.showSimpleDialog(
+        context,
+        title: 'No se pudo completar la operación',
+        message: error.message,
+        icon: Icons.error_outline_rounded,
+        color: Theme.of(context).colorScheme.error,
+        duration: 2200,
+      );
+    } finally {
+      _isLoggingOut = false;
+    }
+  }
+
+  void _clearSessionState() {
+    _userProfileController.clear();
+    _favoritosController.limpiar();
+    _notificacionesController.clearData();
   }
 }

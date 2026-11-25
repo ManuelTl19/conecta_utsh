@@ -13,6 +13,7 @@ class AuthService {
     this.loginEndpoint,
     this.registerEndpoint,
     this.forgotPasswordEndpoint,
+    this.verifyResetCodeEndpoint,
     this.resetPasswordEndpoint,
     HttpClient? client,
     TokenStore? tokenStore,
@@ -22,6 +23,7 @@ class AuthService {
   final Uri? loginEndpoint;
   final Uri? registerEndpoint;
   final Uri? forgotPasswordEndpoint;
+  final Uri? verifyResetCodeEndpoint;
   final Uri? resetPasswordEndpoint;
   final HttpClient _client;
   final TokenStore _tokenStore;
@@ -29,6 +31,8 @@ class AuthService {
   Uri get _loginUri => loginEndpoint ?? Apis.login;
   Uri get _registerUri => registerEndpoint ?? Apis.register;
   Uri get _forgotPasswordUri => forgotPasswordEndpoint ?? Apis.forgotPassword;
+  Uri get _verifyResetCodeUri =>
+      verifyResetCodeEndpoint ?? Apis.verifyResetCode;
   Uri get _resetPasswordUri => resetPasswordEndpoint ?? Apis.resetPassword;
 
   Future<LoginResponseModel> login(LoginModel model) async {
@@ -60,6 +64,23 @@ class AuthService {
     );
   }
 
+  Future<VerifyResetCodeResponse> verifyResetCode(
+    VerifyResetCodeRequest model,
+  ) async {
+    final responseBody = await _post(_verifyResetCodeUri, model.toJson());
+    if (responseBody.trim().isEmpty) {
+      throw const FormatException(
+        'La respuesta de verificación del código no es válida.',
+      );
+    }
+    return VerifyResetCodeResponse.fromJson(
+      _decodeResponse(
+        responseBody,
+        'La respuesta de verificación del código no es válida.',
+      ),
+    );
+  }
+
   Future<ResetPasswordResponse> resetPassword(
     ResetPasswordRequest model,
   ) async {
@@ -84,13 +105,43 @@ class AuthService {
   Future<void> logout() => _tokenStore.clear();
 
   Future<String> _post(Uri endpoint, Map<String, dynamic> body) async {
+    return _sendRequest(method: 'POST', endpoint: endpoint, body: body);
+  }
+
+  Future<String> authenticatedRequest({
+    required String method,
+    required Uri endpoint,
+    Map<String, dynamic>? body,
+  }) async {
+    final token = await _tokenStore.read();
+    if (token == null || token.isEmpty) {
+      throw StateError('No hay una sesión activa para esta solicitud.');
+    }
+    return _sendRequest(
+      method: method,
+      endpoint: endpoint,
+      body: body,
+      headers: {HttpHeaders.authorizationHeader: 'Bearer $token'},
+    );
+  }
+
+  Future<String> _sendRequest({
+    required String method,
+    required Uri endpoint,
+    Map<String, dynamic>? body,
+    Map<String, String> headers = const {},
+  }) async {
     final request = await _client
-        .postUrl(endpoint)
+        .openUrl(method, endpoint)
         .timeout(const Duration(seconds: 15));
-    request.headers
-      ..contentType = ContentType.json
-      ..set(HttpHeaders.acceptHeader, ContentType.json.mimeType);
-    request.write(jsonEncode(body));
+    request.headers.set(HttpHeaders.acceptHeader, ContentType.json.mimeType);
+    for (final header in headers.entries) {
+      request.headers.set(header.key, header.value);
+    }
+    if (body != null) {
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode(body));
+    }
 
     final response = await request.close().timeout(const Duration(seconds: 15));
     final responseBody = await utf8.decoder
@@ -111,6 +162,9 @@ class AuthService {
       throw AuthApiException(
         statusCode: response.statusCode,
         message: message ?? response.reasonPhrase,
+        retryAfterSeconds: _retryAfterSeconds(
+          response.headers.value('retry-after'),
+        ),
       );
     }
 
@@ -128,14 +182,32 @@ class AuthService {
     return decoded;
   }
 
+  int? _retryAfterSeconds(String? header) {
+    if (header == null) return null;
+    final seconds = int.tryParse(header);
+    if (seconds != null) return seconds;
+    try {
+      final retryAt = HttpDate.parse(header);
+      final remaining = retryAt.difference(DateTime.now()).inSeconds;
+      return remaining > 0 ? remaining : 1;
+    } on FormatException {
+      return null;
+    }
+  }
+
   void close() => _client.close();
 }
 
 class AuthApiException implements Exception {
-  const AuthApiException({required this.statusCode, required this.message});
+  const AuthApiException({
+    required this.statusCode,
+    required this.message,
+    this.retryAfterSeconds,
+  });
 
   final int statusCode;
   final String message;
+  final int? retryAfterSeconds;
 
   @override
   String toString() => 'AuthApiException($statusCode): $message';
