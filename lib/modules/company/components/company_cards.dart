@@ -3,14 +3,12 @@ import 'package:conecta_utsh/helpers/style.dart';
 import 'package:conecta_utsh/modules/company/models/company_model.dart';
 
 class FeaturedCompanyCard extends StatelessWidget {
-  const FeaturedCompanyCard({
-    required this.company,
-    required this.onSave,
-    super.key,
-  });
+  const FeaturedCompanyCard({required this.company, required this.onTap, super.key});
 
   final CompanyModel company;
-  final VoidCallback onSave;
+  final VoidCallback onTap;
+
+  String get _name => _companyName(company);
 
   @override
   Widget build(BuildContext context) {
@@ -18,111 +16,89 @@ class FeaturedCompanyCard extends StatelessWidget {
     final colors = theme.colorScheme;
     final areas = company.availableAreas.toSet().take(3);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.primary,
-        borderRadius: Style.getCircularBorderRadius(22),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Material(
+      color: colors.primary,
+      borderRadius: Style.getCircularBorderRadius(22),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _FeaturedCompanyInitial(company: company),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      company.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: colors.onPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
+              Row(
+                children: [
+                  _Initial(company: company, size: 36, featured: true),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: colors.onPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          _optionalText(company.sector) ??
+                              'Sector no especificado',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colors.onPrimary.withValues(alpha: .78),
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      company.sector,
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: colors.onPrimary,
+                    size: 14,
+                  ),
+                ],
+              ),
+              if (areas.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 5,
+                  runSpacing: 4,
+                  children: areas
+                      .map((area) => _FeaturedAreaChip(label: area))
+                      .toList(),
+                ),
+              ],
+              const Spacer(),
+              Row(
+                children: [
+                  Icon(
+                    Icons.location_on_outlined,
+                    size: 15,
+                    color: colors.onPrimary,
+                  ),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: Text(
+                      _companyLocation(company).isEmpty
+                          ? 'Ubicación no especificada'
+                          : _companyLocation(company),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: colors.onPrimary.withValues(alpha: .78),
+                        color: colors.onPrimary,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              SizedBox(
-                width: 40,
-                height: 40,
-                child: IconButton(
-                  tooltip: company.isFavorite
-                      ? 'Quitar de favoritas'
-                      : 'Agregar a favoritas',
-                  onPressed: onSave,
-                  padding: EdgeInsets.zero,
-                  icon: Icon(
-                    company.isFavorite
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    color: colors.onPrimary,
-                    size: 20,
                   ),
-                ),
+                ],
               ),
             ],
           ),
-          if (areas.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 5,
-              runSpacing: 4,
-              children: areas
-                  .map((area) => _FeaturedAreaChip(label: area))
-                  .toList(),
-            ),
-          ],
-          const Spacer(),
-          Row(
-            children: [
-              Icon(
-                company.totalReviews == 0
-                    ? Icons.star_border_rounded
-                    : Icons.star_rounded,
-                size: 15,
-                color: colors.onPrimary,
-              ),
-              const SizedBox(width: 3),
-              Expanded(
-                child: Text(
-                  company.totalReviews == 0
-                      ? 'Sin reseñas aún'
-                      : '${company.averageRating.toStringAsFixed(1)} · ${company.totalReviews} reseñas',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colors.onPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  '${company.municipality}, ${company.state}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colors.onPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -138,6 +114,9 @@ class CompanyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final area = company.availableAreas.isEmpty
+        ? null
+        : company.availableAreas.first;
 
     return Card(
       elevation: 0,
@@ -157,32 +136,18 @@ class CompanyCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _CompanyInitial(company: company, size: 40),
+                  _Initial(company: company, size: 40),
                   const Spacer(),
                   Icon(
-                    company.totalReviews == 0
-                        ? Icons.star_border_rounded
-                        : Icons.star_rounded,
-                    color: company.totalReviews == 0
-                        ? colors.onSurfaceVariant
-                        : _accentGreen(context),
-                    size: 16,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    company.totalReviews == 0
-                        ? '—'
-                        : company.averageRating.toStringAsFixed(1),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    Icons.arrow_forward_rounded,
+                    color: colors.onSurfaceVariant,
+                    size: 18,
                   ),
                 ],
               ),
               const SizedBox(height: 10),
               Text(
-                company.name,
+                _companyName(company),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleSmall?.copyWith(
@@ -192,7 +157,7 @@ class CompanyCard extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                company.sector,
+                _optionalText(company.sector) ?? 'Sector no especificado',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -200,8 +165,8 @@ class CompanyCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              if (company.availableAreas.isNotEmpty) ...[
-                _AreaChip(label: company.availableAreas.first),
+              if (area != null && area.trim().isNotEmpty) ...[
+                _AreaChip(label: area),
                 const SizedBox(height: 7),
               ],
               Row(
@@ -214,7 +179,9 @@ class CompanyCard extends StatelessWidget {
                   const SizedBox(width: 3),
                   Expanded(
                     child: Text(
-                      '${company.municipality}, ${company.state}',
+                      _companyLocation(company).isEmpty
+                          ? 'Ubicación no especificada'
+                          : _companyLocation(company),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelSmall?.copyWith(
@@ -232,58 +199,177 @@ class CompanyCard extends StatelessWidget {
   }
 }
 
-class _CompanyInitial extends StatelessWidget {
-  const _CompanyInitial({required this.company, required this.size});
+class CompanyListCard extends StatelessWidget {
+  const CompanyListCard({required this.company, required this.onTap, super.key});
 
   final CompanyModel company;
-  final double size;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: colors.primaryContainer,
-        borderRadius: Style.getCircularBorderRadius(12),
-      ),
-      child: Text(
-        company.name.trim().isEmpty
-            ? 'E'
-            : company.name.trim().substring(0, 1).toUpperCase(),
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: colors.onPrimaryContainer,
-          fontWeight: FontWeight.w700,
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final accent = Theme.of(context).brightness == Brightness.dark
+        ? Style.successDark
+        : colors.primary;
+    final areas = company.availableAreas.toSet().toList();
+    final careers = company.acceptedCareers;
+    final careerSummary = careers.isEmpty
+        ? 'Acepta todas las carreras'
+        : [
+            careers.first,
+            if (careers.length > 1) '+${careers.length - 1}',
+          ].join(' ');
+
+    return Semantics(
+      container: true,
+      label: [
+        _companyName(company),
+        _optionalText(company.sector),
+        _companyLocation(company),
+      ].whereType<String>().join(', '),
+      child: Card(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        color: colors.surfaceContainerLowest,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: Style.getCircularBorderRadius(20),
+          side: BorderSide(color: colors.outlineVariant),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _Initial(company: company, size: 48),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _companyName(company),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: colors.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            [
+                              _optionalText(company.sector),
+                              _companyLocation(company),
+                            ].whereType<String>().join(' · '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (areas.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      ...areas.take(3).map((area) => _InfoBadge(label: area)),
+                      if (areas.length > 3)
+                        _InfoBadge(label: '+${areas.length - 3}'),
+                    ],
+                  ),
+                ],
+                const Divider(height: 24),
+                Row(
+                  children: [
+                    Icon(
+                      careers.isEmpty
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.school_outlined,
+                      color: accent,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        careerSummary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: accent,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Ver detalles',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: accent,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 12,
+                          color: accent,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _FeaturedCompanyInitial extends StatelessWidget {
-  const _FeaturedCompanyInitial({required this.company});
+class _Initial extends StatelessWidget {
+  const _Initial({
+    required this.company,
+    required this.size,
+    this.featured = false,
+  });
 
   final CompanyModel company;
+  final double size;
+  final bool featured;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final initial = _companyName(company).substring(0, 1).toUpperCase();
     return Container(
-      width: 36,
-      height: 36,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: colors.onPrimary,
-        borderRadius: Style.getCircularBorderRadius(10),
+        color: featured ? colors.onPrimary : colors.primaryContainer,
+        borderRadius: Style.getCircularBorderRadius(12),
       ),
       child: Text(
-        company.name.trim().isEmpty
-            ? 'E'
-            : company.name.trim().substring(0, 1).toUpperCase(),
-        style: Theme.of(context).textTheme.titleSmall
-            ?.copyWith(color: colors.primary, fontWeight: FontWeight.w700),
+        initial,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: featured ? colors.primary : colors.onPrimaryContainer,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -307,8 +393,10 @@ class _FeaturedAreaChip extends StatelessWidget {
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.labelSmall
-            ?.copyWith(color: colors.onPrimary, fontWeight: FontWeight.w500),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: colors.onPrimary,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
@@ -341,7 +429,41 @@ class _AreaChip extends StatelessWidget {
   }
 }
 
-Color _accentGreen(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-    ? Style.successDark
-    : Theme.of(context).colorScheme.primary;
+class _InfoBadge extends StatelessWidget {
+  const _InfoBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: colors.onSurfaceVariant,
+          fontWeight: FontWeight.normal,
+        ),
+      ),
+    );
+  }
+}
+
+String _companyName(CompanyModel company) =>
+    _optionalText(company.name) ?? 'Empresa sin nombre';
+
+String? _optionalText(String? value) {
+  final trimmed = value?.trim();
+  return trimmed == null || trimmed.isEmpty ? null : trimmed;
+}
+
+String _companyLocation(CompanyModel company) => [
+  _optionalText(company.location.municipality),
+  _optionalText(company.location.state),
+].whereType<String>().join(', ');

@@ -1,118 +1,129 @@
 class CompanyModel {
   const CompanyModel({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.sector,
-    required this.availableAreas,
-    required this.address,
-    required this.municipality,
-    required this.state,
-    required this.mapUrl,
-    required this.contact,
-    required this.requirements,
-    required this.active,
-    required this.acceptedCareers,
-    required this.registeredAt,
-    required this.averageRating,
-    required this.totalReviews,
-    required this.isFavorite,
+    this.id = '',
+    this.name,
+    this.description,
+    this.sector,
+    this.availableAreas = const [],
+    this.location = const CompanyLocation(),
+    this.contact = const CompanyContact(),
+    this.requirements = const [],
+    this.active = false,
+    this.registeredAt,
+    this.acceptedAcademicDirections = const [],
+    this.acceptedCareers = const [],
   });
 
   final String id;
-  final String name;
-  final String description;
-  final String sector;
+  final String? name;
+  final String? description;
+  final String? sector;
   final List<String> availableAreas;
-  final String address;
-  final String municipality;
-  final String state;
-  final String mapUrl;
-  final String contact;
+  final CompanyLocation location;
+  final CompanyContact contact;
   final List<String> requirements;
   final bool active;
+  final DateTime? registeredAt;
+  final List<String> acceptedAcademicDirections;
   final List<String> acceptedCareers;
-  final String registeredAt;
-  final double averageRating;
-  final int totalReviews;
-  final bool isFavorite;
 
   factory CompanyModel.fromJson(Map<String, dynamic> json) {
-    final id = json['_id'] ?? json['id'];
     final location = json['ubicacion'];
-    final areas = json['areasDisponibles'] ?? const [];
-    final requirements = json['requisitos'] ?? const [];
-    final careers = json['carrerasAceptadas'] ?? const [];
-    final rating = json['calificacionPromedio'] ?? 0;
-    final reviewCount = json['totalResenas'] ?? 0;
-    final registeredAt = json['fechaRegistro'] ?? '';
-    final description = json['descripcion'] ?? '';
-    final contact = json['contacto'] ?? '';
-    final active = json['activa'] ?? true;
-    final isFavorite = json['esFavorita'];
-
-    if (id is! String ||
-        json['nombre'] is! String ||
-        description is! String ||
-        json['sector'] is! String ||
-        areas is! List ||
-        areas.any((area) => area is! String) ||
-        location is! Map<String, dynamic> ||
-        location['municipio'] is! String ||
-        location['estado'] is! String ||
-        (location['direccion'] != null && location['direccion'] is! String) ||
-        (location['mapaUrl'] != null && location['mapaUrl'] is! String) ||
-        contact is! String ||
-        requirements is! List ||
-        requirements.any((item) => item is! String) ||
-        active is! bool ||
-        careers is! List ||
-        careers.any((career) => career is! String) ||
-        registeredAt is! String ||
-        rating is! num ||
-        reviewCount is! int ||
-        (isFavorite != null && isFavorite is! bool)) {
-      throw const FormatException('Los datos de la empresa no son válidos.');
-    }
+    final contact = json['contacto'];
+    final registeredAt = json['fechaRegistro'];
 
     return CompanyModel(
-      id: id,
-      name: json['nombre'] as String,
-      description: description,
-      sector: json['sector'] as String,
-      availableAreas: List<String>.from(areas),
-      address: location['direccion'] as String? ?? '',
-      municipality: location['municipio'] as String,
-      state: location['estado'] as String,
-      mapUrl: location['mapaUrl'] as String? ?? '',
-      contact: contact,
-      requirements: List<String>.from(requirements),
-      active: active,
-      acceptedCareers: List<String>.from(careers),
-      registeredAt: registeredAt,
-      averageRating: rating.toDouble(),
-      totalReviews: reviewCount,
-      isFavorite: isFavorite as bool? ?? false,
+      id: _string(json['_id']) ?? '',
+      name: _string(json['nombre']),
+      description: _string(json['descripcion']),
+      sector: _string(json['sector']),
+      availableAreas: _stringList(json['areasDisponibles']),
+      location: CompanyLocation.fromJson(
+        location is Map<String, dynamic> ? location : const {},
+      ),
+      contact: CompanyContact.fromJson(
+        contact is Map<String, dynamic> ? contact : const {},
+      ),
+      requirements: _stringList(json['requisitos']),
+      active: json['activa'] is bool ? json['activa'] as bool : false,
+      registeredAt: registeredAt is String
+          ? DateTime.tryParse(registeredAt)
+          : null,
+      acceptedAcademicDirections: _stringList(
+        json['direccionesAcademicas'],
+      ),
+      acceptedCareers: _stringList(json['carrerasAceptadas']),
     );
   }
 
-  CompanyModel copyWith({bool? isFavorite}) => CompanyModel(
-    id: id,
-    name: name,
-    description: description,
-    sector: sector,
-    availableAreas: availableAreas,
-    address: address,
-    municipality: municipality,
-    state: state,
-    mapUrl: mapUrl,
-    contact: contact,
-    requirements: requirements,
-    active: active,
-    acceptedCareers: acceptedCareers,
-    registeredAt: registeredAt,
-    averageRating: averageRating,
-    totalReviews: totalReviews,
-    isFavorite: isFavorite ?? this.isFavorite,
-  );
+  static String? _string(Object? value) => value is String ? value : null;
+
+  static List<String> _stringList(Object? value) => value is List
+      ? value.whereType<String>().toList(growable: false)
+      : const [];
+}
+
+class CompanyLocation {
+  const CompanyLocation({
+    this.address,
+    this.municipality,
+    this.state,
+    this.mapUrl,
+  });
+
+  final String? address;
+  final String? municipality;
+  final String? state;
+  final String? mapUrl;
+
+  factory CompanyLocation.fromJson(Map<String, dynamic> json) =>
+      CompanyLocation(
+        address: _string(json['direccion']),
+        municipality: _string(json['municipio']),
+        state: _string(json['estado']),
+        mapUrl: _string(json['mapaUrl']),
+      );
+
+  static String? _string(Object? value) => value is String ? value : null;
+}
+
+class CompanyContact {
+  const CompanyContact({this.email, this.phone});
+
+  final String? email;
+  final String? phone;
+
+  factory CompanyContact.fromJson(Map<String, dynamic> json) =>
+      CompanyContact(
+        email: _string(json['correo']),
+        phone: _string(json['telefono']),
+      );
+
+  static String? _string(Object? value) => value is String ? value : null;
+}
+
+class CompanyListResponse {
+  const CompanyListResponse({required this.total, required this.companies});
+
+  final int total;
+  final List<CompanyModel> companies;
+
+  factory CompanyListResponse.fromJson(Map<String, dynamic> json) {
+    final rawCompanies = json['empresas'];
+    final rawTotal = json['total'];
+    final total = rawTotal is int ? rawTotal : int.tryParse('$rawTotal');
+    if (rawCompanies is! List || total == null) {
+      throw const FormatException(
+        'La respuesta de empresas no tiene un formato válido.',
+      );
+    }
+
+    return CompanyListResponse(
+      total: total,
+      companies: rawCompanies
+          .whereType<Map<String, dynamic>>()
+          .map(CompanyModel.fromJson)
+          .toList(growable: false),
+    );
+  }
 }

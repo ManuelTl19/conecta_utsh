@@ -7,12 +7,12 @@ import 'package:conecta_utsh/modules/company/models/company_model.dart';
 class FeaturedCompaniesCarousel extends StatefulWidget {
   const FeaturedCompaniesCarousel({
     required this.companies,
-    required this.onSave,
+    required this.onTap,
     super.key,
   });
 
   final List<CompanyModel> companies;
-  final ValueChanged<CompanyModel> onSave;
+  final ValueChanged<CompanyModel> onTap;
 
   @override
   State<FeaturedCompaniesCarousel> createState() =>
@@ -118,9 +118,7 @@ class _FeaturedCompaniesCarouselState extends State<FeaturedCompaniesCarousel>
                     ),
                     child: FeaturedCompanyCard(
                       company: company,
-                      onSave: () => widget.onSave(
-                        company.copyWith(isFavorite: !company.isFavorite),
-                      ),
+                      onTap: () => widget.onTap(company),
                     ),
                   ),
                   builder: (context, child) {
@@ -129,12 +127,10 @@ class _FeaturedCompaniesCarouselState extends State<FeaturedCompaniesCarousel>
                               _controller.initialPage.toDouble())
                         : _controller.initialPage.toDouble();
                     final distance = (page - index).abs().clamp(0.0, 1.0);
-                    final scale = 1 - distance * .08;
-                    final opacity = 1 - distance * .22;
                     return Opacity(
-                      opacity: opacity,
+                      opacity: 1 - distance * .22,
                       child: Transform.scale(
-                        scale: scale,
+                        scale: 1 - distance * .08,
                         child: FadeTransition(
                           opacity: _fadeIn,
                           child: SlideTransition(

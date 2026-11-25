@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 import 'package:resize/resize.dart';
 import 'package:conecta_utsh/helpers/style.dart';
 import 'package:conecta_utsh/modules/app/components/home_components.dart';
@@ -8,16 +9,21 @@ import 'package:conecta_utsh/modules/app/screens/edit_profile_screen.dart';
 import 'package:conecta_utsh/modules/app/screens/forgot_password_email_screen.dart';
 import 'package:conecta_utsh/modules/app/services/auth_service.dart';
 import 'package:conecta_utsh/modules/app/services/user_profile_service.dart';
+import 'package:conecta_utsh/modules/notifications/components/notification_bell_button.dart';
+import 'package:conecta_utsh/modules/notifications/providers/notificaciones_controller.dart';
+import 'package:conecta_utsh/modules/notifications/screens/notificaciones_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     required this.authService,
     required this.onLogout,
+    this.userRole,
     super.key,
   });
 
   final AuthService authService;
   final Future<void> Function() onLogout;
+  final String? userRole;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -90,6 +96,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _openNotifications() {
+    final notificationController = Provider.of<NotificacionesController>(
+      context,
+      listen: false,
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChangeNotifierProvider<NotificacionesController>.value(
+          value: notificationController,
+          child: NotificacionesScreen(userRole: widget.userRole),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -100,6 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: colors.surface,
         foregroundColor: colors.onSurface,
         surfaceTintColor: Colors.transparent,
+        actions: [NotificationBellButton(onPressed: _openNotifications)],
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: colors.primary))

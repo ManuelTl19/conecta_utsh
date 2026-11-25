@@ -1,47 +1,42 @@
 class CompanyFilters {
   const CompanyFilters({
-    this.direccion,
-    this.carreras = const [],
+    this.direccionAcademica,
+    this.carrera,
     this.estado,
     this.municipio,
-    this.calificacionMin,
     this.soloFavoritas = false,
   });
 
-  final String? direccion;
-  final List<String> carreras;
+  final String? direccionAcademica;
+  final String? carrera;
   final String? estado;
   final String? municipio;
-  final double? calificacionMin;
   final bool soloFavoritas;
 
   bool get hasActiveFilters =>
-      direccion != null ||
-      carreras.isNotEmpty ||
+      direccionAcademica != null ||
+      carrera != null ||
       estado != null ||
       municipio != null ||
-      calificacionMin != null ||
       soloFavoritas;
 
   CompanyFilters copyWith({
-    String? direccion,
-    bool clearDireccion = false,
-    List<String>? carreras,
+    String? direccionAcademica,
+    bool clearDireccionAcademica = false,
+    String? carrera,
+    bool clearCarrera = false,
     String? estado,
     bool clearEstado = false,
     String? municipio,
     bool clearMunicipio = false,
-    double? calificacionMin,
-    bool clearCalificacionMin = false,
     bool? soloFavoritas,
   }) => CompanyFilters(
-    direccion: clearDireccion ? null : direccion ?? this.direccion,
-    carreras: carreras ?? this.carreras,
+    direccionAcademica: clearDireccionAcademica
+        ? null
+        : direccionAcademica ?? this.direccionAcademica,
+    carrera: clearCarrera ? null : carrera ?? this.carrera,
     estado: clearEstado ? null : estado ?? this.estado,
     municipio: clearMunicipio ? null : municipio ?? this.municipio,
-    calificacionMin: clearCalificacionMin
-        ? null
-        : calificacionMin ?? this.calificacionMin,
     soloFavoritas: soloFavoritas ?? this.soloFavoritas,
   );
 }
