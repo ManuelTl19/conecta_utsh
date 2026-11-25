@@ -1,16 +1,21 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/utils/widgets/dialogs.dart'; // Asegúrate de que aquí esté exportada la clase Dialogs
 import 'package:conecta_utsh/modules/calendar/models/appointment_model.dart';
 import 'package:conecta_utsh/modules/calendar/models/availability_model.dart';
+import 'package:conecta_utsh/modules/calendar/service/citas_service.dart';
 
 class CardFormCalendar extends StatefulWidget {
   const CardFormCalendar({
     super.key,
+    required this.citasService,
     this.startHour = 9,
-    this.endHour = 17,
+    this.endHour = 14,
     this.intervalMinutes = 10,
   });
 
+  final CitasService citasService;
   final int startHour;
   final int endHour;
   final int intervalMinutes;
@@ -42,96 +47,96 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
   int _selectedDateIndex = 0;
   int _selectedTimeIndex = -1;
   int _selectedHourFilter = 9;
+  bool _isLoadingAvailability = false;
+  String? _availabilityError;
+  int _availabilityRequestVersion = 0;
+  bool _isSubmitting = false;
   final TextEditingController _motivoController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _selectedHourFilter = widget.startHour;
-    _loadAvailabilityFor(_selectedDireccion);
+    final dates = _nextBusinessDates();
+    _currentAvailability = DirectionAvailabilityModel(
+      direccion: _selectedDireccion,
+      hasAttention: dates.isNotEmpty,
+      attentionSchedule:
+          'Atención de lunes a viernes · 09:00 a 14:00 h (pausa de 12:00 a 13:00; citas de 10 min)',
+      noAttentionMessage: 'No hay fechas hábiles disponibles.',
+      availableDates: dates,
+    );
+    if (dates.isNotEmpty) unawaited(_loadAvailabilityFor(0));
   }
 
-  List<TimeSlotModel> _generateSlots({Set<String> occupiedTimes = const {}}) {
-    final List<TimeSlotModel> slots = [];
-    final startTotalMinutes = widget.startHour * 60;
-    final endTotalMinutes = widget.endHour * 60;
-
-    for (int current = startTotalMinutes;
-        current < endTotalMinutes;
-        current += widget.intervalMinutes) {
-      final next = current + widget.intervalMinutes;
-      final startStr = _formatMinutes(current);
-      final endStr = _formatMinutes(next);
-
-      slots.add(
-        TimeSlotModel(
-          time: startStr,
-          range: '$startStr–$endStr h',
-          isAvailable: !occupiedTimes.contains(startStr),
-        ),
-      );
-    }
-    return slots;
-  }
-
-  String _formatMinutes(int totalMinutes) {
-    final h = (totalMinutes ~/ 60).toString().padLeft(2, '0');
-    final m = (totalMinutes % 60).toString().padLeft(2, '0');
-    return '$h:$m';
-  }
-
-  void _loadAvailabilityFor(String direccion) {
-    final startFormatted = '${widget.startHour.toString().padLeft(2, '0')}:00';
-    final endFormatted = '${widget.endHour.toString().padLeft(2, '0')}:00';
-
-    if (direccion == 'Ciencias de la Salud') {
-      _currentAvailability = DirectionAvailabilityModel(
-        direccion: direccion,
-        hasAttention: false,
-        attentionSchedule: 'Sin horarios asignados esta semana',
-        noAttentionMessage:
-            'Por el momento no hay fechas de atención disponibles para $direccion.',
-        availableDates: [],
-      );
-    } else {
-      _currentAvailability = DirectionAvailabilityModel(
-        direccion: direccion,
-        hasAttention: true,
-        attentionSchedule:
-            'Atención: miércoles · $startFormatted a $endFormatted h (citas de ${widget.intervalMinutes} min)',
-        availableDates: [
-          AvailableDateModel(
-            rawDate: '2026-11-18',
-            labelDate: '18 nov',
-            dayName: 'Miércoles',
-            slots: _generateSlots(
-              occupiedTimes: {'09:10', '09:40', '10:00', '11:20', '14:00', '16:30'},
-            ),
-          ),
-          AvailableDateModel(
-            rawDate: '2026-11-25',
-            labelDate: '25 nov',
-            dayName: 'Miércoles',
-            slots: _generateSlots(
-              occupiedTimes: {'09:00', '10:30', '12:10', '15:00'},
-            ),
-          ),
-        ],
-      );
-    }
-
-    _selectedDateIndex = 0;
-    if (_currentAvailability.hasAttention &&
-        _currentAvailability.availableDates.isNotEmpty) {
-      final firstSlots = _currentAvailability.availableDates.first.slots;
-      _selectedTimeIndex = firstSlots.indexWhere((s) => s.isAvailable);
-      if (_selectedTimeIndex >= 0) {
-        final firstHour =
-            int.tryParse(firstSlots[_selectedTimeIndex].time.split(':')[0]);
-        if (firstHour != null) _selectedHourFilter = firstHour;
+  List<AvailableDateModel> _nextBusinessDates() {
+    final now = DateTime.now();
+    var date = DateTime(now.year, now.month, now.day);
+    final dates = <AvailableDateModel>[];
+    while (dates.length < 5) {
+      if (date.weekday >= DateTime.monday && date.weekday <= DateTime.friday) {
+        final rawDate =
+            '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        dates.add(
+          AvailableDateModel.fromJson({'fecha': rawDate, 'horarios': []}),
+        );
       }
-    } else {
+      date = date.add(const Duration(days: 1));
+    }
+    return dates;
+  }
+
+  Future<void> _loadAvailabilityFor(int dateIndex) async {
+    if (dateIndex < 0 || dateIndex >= _currentAvailability.availableDates.length) {
+      return;
+    }
+
+    final requestVersion = ++_availabilityRequestVersion;
+    final date = _currentAvailability.availableDates[dateIndex];
+    final parts = date.rawDate.split('-');
+    final requestedDate = DateTime(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
+    setState(() {
+      _isLoadingAvailability = true;
+      _availabilityError = null;
       _selectedTimeIndex = -1;
+    });
+
+    try {
+      final result = await widget.citasService.obtenerHorariosDisponibles(
+        requestedDate,
+      );
+      if (!mounted || requestVersion != _availabilityRequestVersion) return;
+      final dates = [..._currentAvailability.availableDates];
+      dates[dateIndex] = result;
+      setState(() {
+        _currentAvailability = DirectionAvailabilityModel(
+          direccion: _currentAvailability.direccion,
+          hasAttention: _currentAvailability.hasAttention,
+          attentionSchedule: _currentAvailability.attentionSchedule,
+          noAttentionMessage: _currentAvailability.noAttentionMessage,
+          availableDates: dates,
+        );
+        _selectedTimeIndex = result.slots.indexWhere(
+          (slot) => slot.isAvailable,
+        );
+        if (_selectedTimeIndex >= 0) {
+          final hour = int.tryParse(
+            result.slots[_selectedTimeIndex].time.split(':').first,
+          );
+          if (hour != null) _selectedHourFilter = hour;
+        }
+        _isLoadingAvailability = false;
+      });
+    } catch (error) {
+      if (!mounted || requestVersion != _availabilityRequestVersion) return;
+      setState(() {
+        _availabilityError = error.toString();
+        _isLoadingAvailability = false;
+      });
     }
   }
 
@@ -144,23 +149,51 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
   Future<void> _confirmarCita() async {
     final fechaObj = _currentAvailability.availableDates[_selectedDateIndex];
     final slotObj = fechaObj.slots[_selectedTimeIndex];
-
-    final nuevaCita = AppointmentModel(
-      title: 'Atención de Estadías',
-      direccion: _selectedDireccion,
-      date: fechaObj.labelDate,
-      time: slotObj.time,
-      range: slotObj.range,
-      motivo: _motivoController.text.trim(),
-      status: 'Confirmada',
+    final timeParts = slotObj.time.split(':');
+    final fechaHora = DateTime(
+      int.parse(fechaObj.rawDate.substring(0, 4)),
+      int.parse(fechaObj.rawDate.substring(5, 7)),
+      int.parse(fechaObj.rawDate.substring(8, 10)),
+      int.parse(timeParts[0]),
+      int.parse(timeParts[1]),
     );
+    final motivo = _motivoController.text.trim();
 
-    // Muestra el diálogo animado de confirmación antes de cerrar el modal
+    if (motivo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Escribe el motivo de la cita.')),
+      );
+      return;
+    }
+    if (!fechaHora.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona una fecha y hora futuras.')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    late final AppointmentModel nuevaCita;
+    try {
+      nuevaCita = await widget.citasService.crearCita(
+        fechaHora: fechaHora,
+        motivo: motivo,
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo agendar la cita: $error')),
+        );
+      }
+      return;
+    }
+
     await Dialogs.showSimpleDialog(
       context,
-      title: '¡Cita agendada!',
+      title: '¡Solicitud enviada!',
       message:
-          'Tu cita para ${fechaObj.labelDate} a las ${slotObj.time} h ha sido registrada.',
+          'Tu cita para ${nuevaCita.date} a las ${nuevaCita.time} h ha sido registrada.',
       icon: Icons.check_circle_outline_rounded,
       color: _brandGreen,
     );
@@ -312,7 +345,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: canGoNext
+                    onPressed: canGoNext && !_isSubmitting
                         ? () {
                             if (_currentStep < 2) {
                               setState(() => _currentStep++);
@@ -321,13 +354,22 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                             }
                           }
                         : null,
-                    child: Text(
-                      _currentStep < 2 ? 'Siguiente' : 'Confirmar cita',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            _currentStep < 2 ? 'Siguiente' : 'Confirmar cita',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -386,10 +428,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                 }).toList(),
                 onChanged: (value) {
                   if (value != null) {
-                    setState(() {
-                      _selectedDireccion = value;
-                      _loadAvailabilityFor(value);
-                    });
+                    setState(() => _selectedDireccion = value);
                   }
                 },
               ),
@@ -457,7 +496,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '1. Fecha disponible · 2026',
+            '1. Fecha disponible · ${_currentAvailability.availableDates.isEmpty ? DateTime.now().year : _currentAvailability.availableDates[_selectedDateIndex].rawDate.substring(0, 4)}',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -483,9 +522,9 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                       onTap: () {
                         setState(() {
                           _selectedDateIndex = index;
-                          _selectedTimeIndex =
-                              item.slots.indexWhere((s) => s.isAvailable);
+                          _selectedTimeIndex = -1;
                         });
+                        unawaited(_loadAvailabilityFor(index));
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -599,68 +638,96 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
             ),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: filteredSlots.map((entry) {
-              final globalIndex = entry.key;
-              final slot = entry.value;
-              final isSelected = _selectedTimeIndex == globalIndex;
-
-              return InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: slot.isAvailable
-                    ? () => setState(() => _selectedTimeIndex = globalIndex)
-                    : null,
-                child: Container(
-                  width: (MediaQuery.of(context).size.width - 56) / 3,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: !slot.isAvailable
-                        ? colors.surfaceContainerLow.withValues(alpha: 0.5)
-                        : isSelected
-                            ? _brandGreen
-                            : colors.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: !slot.isAvailable
-                          ? colors.outlineVariant.withValues(alpha: 0.4)
-                          : _brandGreen,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        slot.time,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          decoration: !slot.isAvailable
-                              ? TextDecoration.lineThrough
-                              : null,
-                          color: !slot.isAvailable
-                              ? colors.onSurfaceVariant.withValues(alpha: 0.45)
-                              : isSelected
-                                  ? Colors.white
-                                  : _brandGreen,
-                        ),
-                      ),
-                      Text(
-                        !slot.isAvailable ? 'Ocupado' : 'Disponible',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: 10,
-                          color: !slot.isAvailable
-                              ? colors.onSurfaceVariant.withValues(alpha: 0.45)
-                              : isSelected
-                                  ? Colors.white.withValues(alpha: 0.9)
-                                  : _brandGreen,
-                        ),
-                      ),
-                    ],
+          if (_isLoadingAvailability)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_availabilityError != null)
+            Column(
+              children: [
+                Text(
+                  'No se pudieron cargar los horarios: $_availabilityError',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.error,
                   ),
                 ),
-              );
-            }).toList(),
-          ),
+                TextButton(
+                  onPressed: () => unawaited(
+                    _loadAvailabilityFor(_selectedDateIndex),
+                  ),
+                  child: const Text('Intentar de nuevo'),
+                ),
+              ],
+            )
+          else if (currentSlots.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('No hay horarios disponibles para esta fecha.'),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: filteredSlots.map((entry) {
+                final globalIndex = entry.key;
+                final slot = entry.value;
+                final isSelected = _selectedTimeIndex == globalIndex;
+
+                return InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: slot.isAvailable
+                      ? () => setState(() => _selectedTimeIndex = globalIndex)
+                      : null,
+                  child: Container(
+                    width: (MediaQuery.of(context).size.width - 56) / 3,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: !slot.isAvailable
+                          ? colors.surfaceContainerLow.withValues(alpha: 0.5)
+                          : isSelected
+                              ? _brandGreen
+                              : colors.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: !slot.isAvailable
+                            ? colors.outlineVariant.withValues(alpha: 0.4)
+                            : _brandGreen,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          slot.time,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            decoration: !slot.isAvailable
+                                ? TextDecoration.lineThrough
+                                : null,
+                            color: !slot.isAvailable
+                                ? colors.onSurfaceVariant.withValues(alpha: 0.45)
+                                : isSelected
+                                    ? Colors.white
+                                    : _brandGreen,
+                          ),
+                        ),
+                        Text(
+                          !slot.isAvailable ? 'Ocupado' : 'Disponible',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 10,
+                            color: !slot.isAvailable
+                                ? colors.onSurfaceVariant.withValues(alpha: 0.45)
+                                : isSelected
+                                    ? Colors.white.withValues(alpha: 0.9)
+                                    : _brandGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
         ],
       );
     }
@@ -706,7 +773,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
         ),
         const SizedBox(height: 14),
         Text(
-          'Motivo de la atención (opcional)',
+          'Motivo de la atención',
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w600,
           ),

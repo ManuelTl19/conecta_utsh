@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/modules/calendar/components/card_form_calendar.dart';
 import 'package:conecta_utsh/modules/calendar/models/appointment_model.dart';
 import 'package:conecta_utsh/modules/calendar/models/availability_model.dart';
+import 'package:conecta_utsh/modules/calendar/service/citas_service.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -18,6 +19,11 @@ class _CalendarScreenState extends State<CalendarScreen>
   late DateTime _selectedDate;
   late DateTime _focusedMonth;
   String? _selectedSlot;
+  late final CitasService _citasService;
+  List<AppointmentModel> _myAppointments = [];
+  final Set<String> _cancellingAppointmentIds = {};
+  bool _isLoadingAppointments = true;
+  String? _appointmentsError;
 
   // Horarios usando el modelo TimeSlotModel
   final _timeSlots = [
@@ -29,24 +35,6 @@ class _CalendarScreenState extends State<CalendarScreen>
     TimeSlotModel(time: '02:00 PM', range: '02:00–02:30 PM', isAvailable: true),
     TimeSlotModel(time: '03:00 PM', range: '03:00–03:30 PM', isAvailable: false),
     TimeSlotModel(time: '04:00 PM', range: '04:00–04:30 PM', isAvailable: true),
-  ];
-
-  // Lista de citas usando AppointmentModel
-  final _myAppointments = [
-    AppointmentModel(
-      title: 'Entrevista de Estadías - Área TI',
-      direccion: 'Tecnologías de la información',
-      date: '18 nov',
-      time: '10:00 AM',
-      status: 'Confirmada',
-    ),
-    AppointmentModel(
-      title: 'Revisión de Proyecto',
-      direccion: 'Tecnologías de la información',
-      date: '25 nov',
-      time: '03:00 PM',
-      status: 'Pendiente',
-    ),
   ];
 
   /// Si la fecha cae en sábado o domingo, avanza al siguiente lunes hábil
@@ -61,6 +49,8 @@ class _CalendarScreenState extends State<CalendarScreen>
   @override
   void initState() {
     super.initState();
+    _citasService = CitasService();
+    _loadMyAppointments();
     final now = DateTime.now();
     _today = DateTime(now.year, now.month, now.day);
     _selectedDate = _nextBusinessDay(_today);
@@ -69,6 +59,74 @@ class _CalendarScreenState extends State<CalendarScreen>
 
   @override
   bool get wantKeepAlive => true;
+
+  Future<void> _loadMyAppointments() async {
+    try {
+      final appointments = await _citasService.obtenerMisCitas();
+      if (!mounted) return;
+      setState(() {
+        _myAppointments = appointments;
+        _appointmentsError = null;
+        _isLoadingAppointments = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _appointmentsError = error.toString();
+        _isLoadingAppointments = false;
+      });
+    }
+  }
+
+  Future<void> _cancelAppointment(AppointmentModel appointment) async {
+    final id = appointment.id;
+    if (id == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancelar cita'),
+        content: const Text('¿Quieres cancelar esta cita?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancelar cita'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _cancellingAppointmentIds.add(id));
+    try {
+      final cancelledAppointment = await _citasService.cancelarCita(id);
+      if (!mounted) return;
+      setState(() {
+        final index = _myAppointments.indexWhere((item) => item.id == id);
+        if (index >= 0) _myAppointments[index] = cancelledAppointment;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La cita se canceló correctamente.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo cancelar la cita: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _cancellingAppointmentIds.remove(id));
+    }
+  }
+
+  @override
+  void dispose() {
+    _citasService.close();
+    super.dispose();
+  }
 
   /// Convierte textos como '18 nov' o '25 nov' en un DateTime para marcarlo en el calendario
   DateTime? _parseAppointmentDate(String labelDate) {
@@ -101,7 +159,13 @@ class _CalendarScreenState extends State<CalendarScreen>
   Set<DateTime> get _scheduledDates {
     final dates = <DateTime>{};
     for (final cita in _myAppointments) {
-      final parsed = _parseAppointmentDate(cita.date);
+      final parsed = cita.fechaHora == null
+          ? _parseAppointmentDate(cita.date)
+          : DateTime(
+              cita.fechaHora!.year,
+              cita.fechaHora!.month,
+              cita.fechaHora!.day,
+            );
       if (parsed != null) {
         dates.add(parsed);
       }
@@ -122,9 +186,9 @@ class _CalendarScreenState extends State<CalendarScreen>
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: const FractionallySizedBox(
+          child: FractionallySizedBox(
             heightFactor: 0.55,
-            child: CardFormCalendar(),
+            child: CardFormCalendar(citasService: _citasService),
           ),
         );
       },
@@ -326,7 +390,37 @@ class _CalendarScreenState extends State<CalendarScreen>
                 ),
               ),
             ),
-            if (_myAppointments.isEmpty)
+            if (_isLoadingAppointments)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_appointmentsError != null)
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Text(
+                      'No se pudieron cargar tus citas: $_appointmentsError',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colors.error,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _isLoadingAppointments = true;
+                          _appointmentsError = null;
+                        });
+                        _loadMyAppointments();
+                      },
+                      child: const Text('Intentar de nuevo'),
+                    ),
+                  ],
+                ),
+              )
+            else if (_myAppointments.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Column(
@@ -355,7 +449,18 @@ class _CalendarScreenState extends State<CalendarScreen>
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final cita = _myAppointments[index];
-                  final isConfirmed = cita.status == 'Confirmada';
+                  final statusColor = switch (cita.status) {
+                    'Confirmada' => Colors.green,
+                    'Cancelada' => Colors.red,
+                    'Completada' => Colors.blue,
+                    _ => Colors.orange,
+                  };
+                  final canCancel =
+                      cita.id != null &&
+                      (cita.status == 'Pendiente' ||
+                          cita.status == 'Confirmada');
+                  final isCancelling = cita.id != null &&
+                      _cancellingAppointmentIds.contains(cita.id);
 
                   return Card(
                     elevation: 0,
@@ -363,52 +468,82 @@ class _CalendarScreenState extends State<CalendarScreen>
                       borderRadius: BorderRadius.circular(14),
                       side: BorderSide(color: colors.outlineVariant),
                     ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: colors.primaryContainer,
-                        child: Icon(
-                          Icons.calendar_today_rounded,
-                          size: 20,
-                          color: colors.onPrimaryContainer,
-                        ),
-                      ),
-                      title: Text(
-                        cita.title,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${cita.direccion} • ${cita.date} (${cita.time})',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isConfirmed
-                              ? Colors.green.withValues(alpha: 0.15)
-                              : Colors.orange.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          cita.status,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: isConfirmed
-                                ? Colors.green.shade800
-                                : Colors.orange.shade800,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: colors.primaryContainer,
+                            child: Icon(
+                              Icons.calendar_today_rounded,
+                              size: 20,
+                              color: colors.onPrimaryContainer,
+                            ),
+                          ),
+                          title: Text(
+                            cita.title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${cita.direccion} • ${cita.date} (${cita.time})',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              cita.status,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: statusColor,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        if (canCancel)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                right: 12,
+                                bottom: 8,
+                              ),
+                              child: TextButton.icon(
+                                onPressed: isCancelling
+                                    ? null
+                                    : () => _cancelAppointment(cita),
+                                icon: isCancelling
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.event_busy_outlined),
+                                label: Text(
+                                  isCancelling
+                                      ? 'Cancelando...'
+                                      : 'Cancelar cita',
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   );
                 },
