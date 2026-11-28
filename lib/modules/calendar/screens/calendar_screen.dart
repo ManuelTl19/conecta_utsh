@@ -311,78 +311,7 @@ class _CalendarScreenState extends State<CalendarScreen>
               ),
             ),
 
-            // 3. Apartado de Horarios (Disponibles y No disponibles)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Horarios (${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year})',
-                    style: Style.getHeaderTwo(
-                      color: Style.getTextColor(),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      _LegendDot(color: colors.primary, label: 'Libre'),
-                      const SizedBox(width: 10),
-                      _LegendDot(
-                        color: colors.outlineVariant,
-                        label: 'Ocupado',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _timeSlots.map((slot) {
-                  final isSelected = _selectedSlot == slot.time;
 
-                  return ChoiceChip(
-                    label: Text(
-                      slot.time,
-                      style: Style.getTextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        decoration: slot.isAvailable
-                            ? null
-                            : TextDecoration.lineThrough,
-                        color: !slot.isAvailable
-                            ? colors.onSurfaceVariant.withValues(alpha: 0.5)
-                            : isSelected
-                            ? colors.onPrimary
-                            : colors.onSurface,
-                      ),
-                    ),
-                    selected: isSelected,
-                    selectedColor: colors.primary,
-                    backgroundColor: slot.isAvailable
-                        ? colors.surfaceContainerLow
-                        : colors.surfaceContainerHighest.withValues(alpha: 0.4),
-                    side: BorderSide(
-                      color: slot.isAvailable
-                          ? colors.primary.withValues(alpha: 0.4)
-                          : colors.outlineVariant.withValues(alpha: 0.4),
-                    ),
-                    onSelected: slot.isAvailable
-                        ? (selected) {
-                            setState(() {
-                              _selectedSlot = selected ? slot.time : null;
-                            });
-                          }
-                        : null,
-                  );
-                }).toList(),
-              ),
-            ),
 
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),

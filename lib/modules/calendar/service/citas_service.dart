@@ -1,10 +1,59 @@
 import 'dart:convert';
+import 'dart:core' as core;
+import 'dart:core';
 import 'dart:io';
 
 import 'package:conecta_utsh/helpers/apis.dart';
 import 'package:conecta_utsh/modules/app/services/token_store.dart';
 import 'package:conecta_utsh/modules/calendar/models/appointment_model.dart';
 import 'package:conecta_utsh/modules/calendar/models/availability_model.dart';
+
+class OpcionAcademicaModel {
+  const OpcionAcademicaModel({
+    required this.direccion,
+    required this.carreras,
+    required this.diasSemana,
+    required this.bloquesPorDia,
+    required this.duracionMinutos,
+  });
+
+  final String direccion;
+  final core.List<String> carreras;
+  final core.List<String> diasSemana;
+  final core.List<core.Map<String, dynamic>> bloquesPorDia;
+  final int duracionMinutos;
+
+  factory OpcionAcademicaModel.fromJson(core.Map<String, dynamic> json) {
+    return OpcionAcademicaModel(
+      direccion: json['direccion']?.toString() ?? '',
+      carreras: (json['carreras'] as core.List? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      diasSemana: (json['diasSemana'] as core.List? ?? [])
+          .map((e) => e.toString().toLowerCase())
+          .toList(),
+      bloquesPorDia: (json['bloquesPorDia'] as core.List? ?? [])
+          .map((e) => core.Map<String, dynamic>.from(e as core.Map))
+          .toList(),
+      duracionMinutos: (json['duracionMinutos'] as num?)?.toInt() ?? 10,
+    );
+  }
+
+  String get descripcionHorario {
+    if (bloquesPorDia.isEmpty) return 'Sin horarios configurados.';
+    final partes = bloquesPorDia.map((item) {
+      final dia = item['dia']?.toString() ?? '';
+      final diaCapitalizado = dia.isEmpty
+          ? ''
+          : '${dia[0].toUpperCase()}${dia.substring(1)}';
+      final bloques = (item['bloques'] as core.List? ?? [])
+          .map((b) => '${b['inicio']} a ${b['fin']} h')
+          .join(' y ');
+      return '$diaCapitalizado ($bloques)';
+    }).join(' · ');
+    return 'Atención: $partes · citas de $duracionMinutos min';
+  }
+}
 
 class CitasService {
   CitasService({
@@ -22,6 +71,21 @@ class CitasService {
   final Uri _horariosDisponiblesEndpoint;
   final HttpClient _client;
   final TokenStore _tokenStore;
+
+  Future<List<OpcionAcademicaModel>> obtenerOpcionesAcademicas() async {
+    final response = await _request('GET', _uri('opciones-academicas'));
+    final decoded = _decodeJson(response);
+    final opciones =
+        decoded is Map<String, dynamic> && decoded['opciones'] is List
+        ? decoded['opciones'] as List
+        : throw const FormatException(
+            'La respuesta de opciones académicas no es válida.',
+          );
+
+    return opciones
+        .map((item) => OpcionAcademicaModel.fromJson(_asObject(item)))
+        .toList();
+  }
 
   Future<List<AppointmentModel>> obtenerCitas() =>
       _obtenerCitasDesde(_citasEndpoint);
@@ -51,6 +115,8 @@ class CitasService {
   Future<AppointmentModel> crearCita({
     required DateTime fechaHora,
     required String motivo,
+    String? direccion,
+    String? carrera,
   }) async {
     final response = await _request(
       'POST',
@@ -58,18 +124,27 @@ class CitasService {
       body: {
         'fechaHora': fechaHora.toUtc().toIso8601String(),
         'motivo': motivo,
+        if (direccion != null && direccion.isNotEmpty) 'direccion': direccion,
+        if (carrera != null && carrera.isNotEmpty) 'carrera': carrera,
       },
     );
     return AppointmentModel.fromJson(_responseObject(response));
   }
 
   Future<AvailableDateModel> obtenerHorariosDisponibles(
-    DateTime fecha,
-  ) async {
+    DateTime fecha, {
+    String? direccion,
+    String? carrera,
+  }) async {
     final fechaLocal =
         '${fecha.year.toString().padLeft(4, '0')}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}';
+    final queryParams = <String, String>{
+      'fecha': fechaLocal,
+      if (direccion != null && direccion.isNotEmpty) 'direccion': direccion,
+      if (carrera != null && carrera.isNotEmpty) 'carrera': carrera,
+    };
     final endpoint = _horariosDisponiblesEndpoint.replace(
-      queryParameters: {'fecha': fechaLocal},
+      queryParameters: queryParams,
     );
     final response = await _request('GET', endpoint);
     final decoded = _decodeJson(response);

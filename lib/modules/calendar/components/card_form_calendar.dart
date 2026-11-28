@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:conecta_utsh/helpers/style.dart';
 import 'package:conecta_utsh/modules/app/components/step_indicator.dart';
-import 'package:conecta_utsh/utils/widgets/dialogs.dart'; // Asegúrate de que aquí esté exportada la clase Dialogs
+import 'package:conecta_utsh/utils/widgets/dialogs.dart';
 import 'package:conecta_utsh/modules/calendar/models/appointment_model.dart';
 import 'package:conecta_utsh/modules/calendar/models/availability_model.dart';
 import 'package:conecta_utsh/modules/calendar/service/citas_service.dart';
@@ -29,23 +29,30 @@ class CardFormCalendar extends StatefulWidget {
 class _CardFormCalendarState extends State<CardFormCalendar> {
   Color get _brandGreen => Style.getPrimaryColor();
 
-  final List<String> _direcciones = [
-    'Tecnologías de la información',
-    'Ciencias Económico Administrativas',
-    'Ciencias Naturales e Ingeniería',
-    'Ciencias Exactas',
-    'Ciencias de la Salud',
-  ];
+  static const Map<String, int> _diaAWeekday = {
+    'lunes': DateTime.monday,
+    'martes': DateTime.tuesday,
+    'miércoles': DateTime.wednesday,
+    'miercoles': DateTime.wednesday,
+    'jueves': DateTime.thursday,
+    'viernes': DateTime.friday,
+    'sábado': DateTime.saturday,
+    'sabado': DateTime.saturday,
+    'domingo': DateTime.sunday,
+  };
 
-  String _selectedDireccion = 'Tecnologías de la información';
+  bool _isLoadingOpciones = true;
+  String? _opcionesError;
+
+  String? _selectedDireccion;
   DirectionAvailabilityModel _currentAvailability = DirectionAvailabilityModel(
-    direccion: 'Tecnologías de la información',
+    direccion: '',
     hasAttention: false,
     attentionSchedule: 'Cargando horarios...',
     availableDates: [],
   );
 
-  int _currentStep = 0; // 0: Dirección, 1: Fecha y Hora, 2: Motivo y Resumen
+  int _currentStep = 0; // 0: Fecha y Hora, 1: Motivo y Resumen
   int _selectedDateIndex = 0;
   int _selectedTimeIndex = -1;
   int _selectedHourFilter = 9;
@@ -60,23 +67,81 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
   void initState() {
     super.initState();
     _selectedHourFilter = widget.startHour;
-    final dates = _nextBusinessDates();
-    _currentAvailability = DirectionAvailabilityModel(
-      direccion: _selectedDireccion,
-      hasAttention: dates.isNotEmpty,
-      attentionSchedule: 'Atención de lunes a viernes · 09:00 a 14:00 h (pausa de 12:00 a 13:00; citas de 10 min)',
-      noAttentionMessage: 'No hay fechas hábiles disponibles.',
-      availableDates: dates,
-    );
-    if (dates.isNotEmpty) unawaited(_loadAvailabilityFor(0));
+    unawaited(_cargarOpcionesAcademicas());
   }
 
-  List<AvailableDateModel> _nextBusinessDates() {
+  Future<void> _cargarOpcionesAcademicas() async {
+    setState(() {
+      _isLoadingOpciones = true;
+      _opcionesError = null;
+    });
+
+    try {
+      final opciones = await widget.citasService.obtenerOpcionesAcademicas();
+      if (!mounted) return;
+
+      setState(() {
+        _isLoadingOpciones = false;
+      });
+
+      if (opciones.isNotEmpty) {
+        _seleccionarDireccion(opciones.first);
+      } else {
+        setState(() {
+          _currentAvailability = DirectionAvailabilityModel(
+            direccion: '',
+            hasAttention: false,
+            attentionSchedule: '',
+            noAttentionMessage:
+                'Tu dirección académica no tiene agenda activa en este momento.',
+            availableDates: [],
+          );
+        });
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _opcionesError = error.toString();
+        _isLoadingOpciones = false;
+      });
+    }
+  }
+
+  void _seleccionarDireccion(OpcionAcademicaModel opcion) {
+    final dates = _proximasFechasParaDias(opcion.diasSemana);
+    setState(() {
+      _selectedDireccion = opcion.direccion;
+      _selectedDateIndex = 0;
+      _selectedTimeIndex = -1;
+      _currentAvailability = DirectionAvailabilityModel(
+        direccion: opcion.direccion,
+        hasAttention: dates.isNotEmpty,
+        attentionSchedule: opcion.descripcionHorario,
+        noAttentionMessage:
+            'Tu dirección académica no tiene días de atención configurados.',
+        availableDates: dates,
+      );
+    });
+
+    if (dates.isNotEmpty) {
+      unawaited(_loadAvailabilityFor(0));
+    }
+  }
+
+  List<AvailableDateModel> _proximasFechasParaDias(List<String> diasSemana) {
+    final weekdaysPermitidos = diasSemana
+        .map((d) => _diaAWeekday[d.toLowerCase().trim()])
+        .whereType<int>()
+        .toSet();
+
+    if (weekdaysPermitidos.isEmpty) return [];
+
     final now = DateTime.now();
     var date = DateTime(now.year, now.month, now.day);
     final dates = <AvailableDateModel>[];
-    while (dates.length < 5) {
-      if (date.weekday >= DateTime.monday && date.weekday <= DateTime.friday) {
+
+    for (int i = 0; i < 60 && dates.length < 5; i++) {
+      if (weekdaysPermitidos.contains(date.weekday)) {
         final rawDate =
             '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
         dates.add(
@@ -111,6 +176,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
     try {
       final result = await widget.citasService.obtenerHorariosDisponibles(
         requestedDate,
+        direccion: _selectedDireccion,
       );
       if (!mounted || requestVersion != _availabilityRequestVersion) return;
       final dates = [..._currentAvailability.availableDates];
@@ -131,6 +197,11 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
             result.slots[_selectedTimeIndex].time.split(':').first,
           );
           if (hour != null) _selectedHourFilter = hour;
+        } else if (result.slots.isNotEmpty) {
+          final firstHour = int.tryParse(
+            result.slots.first.time.split(':').first,
+          );
+          if (firstHour != null) _selectedHourFilter = firstHour;
         }
         _isLoadingAvailability = false;
       });
@@ -191,6 +262,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
       nuevaCita = await widget.citasService.crearCita(
         fechaHora: fechaHora,
         motivo: motivo,
+        direccion: _selectedDireccion,
       );
     } catch (error) {
       if (mounted) {
@@ -220,11 +292,9 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
   String get _stepSubtitle {
     switch (_currentStep) {
       case 0:
-        return 'Paso 1 de 3 · Selecciona tu dirección';
-      case 1:
-        return 'Paso 2 de 3 · Elige fecha y horario';
+        return 'Paso 1 de 2 · Elige fecha y horario';
       default:
-        return 'Paso 3 de 3 · Confirma los detalles';
+        return 'Paso 2 de 2 · Confirma los detalles';
     }
   }
 
@@ -247,9 +317,10 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
         : null;
 
     final bool canGoNext = _currentStep == 0
-        ? hasDates
-        : _currentStep == 1
-        ? (selectedDateObj != null && selectedSlotObj != null)
+        ? (hasDates &&
+            !_isLoadingOpciones &&
+            selectedDateObj != null &&
+            selectedSlotObj != null)
         : true;
 
     return Material(
@@ -294,7 +365,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
             ),
             const SizedBox(height: 10),
 
-            StepIndicator(step: _currentStep, stepCount: 3),
+            StepIndicator(step: _currentStep, stepCount: 2),
             const SizedBox(height: 14),
 
             // --- CONTENIDO DINÁMICO SEGÚN EL PASO ---
@@ -349,7 +420,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                     ),
                     onPressed: canGoNext && !_isSubmitting
                         ? () {
-                            if (_currentStep < 2) {
+                            if (_currentStep < 1) {
                               setState(() => _currentStep++);
                             } else {
                               _confirmarCita();
@@ -366,7 +437,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                             ),
                           )
                         : Text(
-                            _currentStep < 2 ? 'Siguiente' : 'Confirmar cita',
+                            _currentStep < 1 ? 'Siguiente' : 'Confirmar cita',
                             style: Style.getHeaderThree(
                               color: Style.getInverseTextColor(),
                               fontSize: 12,
@@ -391,118 +462,149 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
     required List<TimeSlotModel> currentSlots,
     required TimeSlotModel? selectedSlotObj,
   }) {
-    // PASO 1: DIRECCIÓN / CARRERA
+    // PASO 1: FECHA Y HORARIO (CON DIRECCIÓN ASIGNADA INFORMATIVA)
     if (_currentStep == 0) {
-      return Column(
-        key: const ValueKey('step_0'),
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Dirección académica / carrera',
-            style: Style.getHeaderThree(
-              color: Style.getTextColor(),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+      if (_isLoadingOpciones) {
+        return const Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      if (_opcionesError != null) {
+        return Column(
+          children: [
+            Text(
+              'No se pudo cargar tu agenda académica: $_opcionesError',
+              style: Style.getTextStyle(
+                color: Style.getErrorColor(),
+                fontSize: 11,
+              ),
+            ),
+            TextButton(
+              onPressed: () => unawaited(_cargarOpcionesAcademicas()),
+              child: const Text('Intentar de nuevo'),
+            ),
+          ],
+        );
+      }
+
+      if (!hasDates) {
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: colors.errorContainer.withValues(alpha: 0.35),
+            borderRadius: Style.getCircularBorderRadius(12),
+            border: Border.all(
+              color: colors.error.withValues(alpha: 0.3),
             ),
           ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: colors.surfaceContainerLowest,
-              borderRadius: Style.getCircularBorderRadius(12),
-              border: Border.all(
-                color: colors.outlineVariant.withValues(alpha: 0.6),
+          child: Row(
+            children: [
+              Icon(
+                Icons.event_busy_rounded,
+                color: colors.error,
+                size: 22,
               ),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedDireccion,
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                items: _direcciones.map((dir) {
-                  return DropdownMenuItem<String>(
-                    value: dir,
-                    child: Text(
-                      dir,
-                      style: Style.getTextStyle(
-                        color: Style.getTextColor(),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _selectedDireccion = value);
-                  }
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: hasDates
-                  ? _brandGreen.withValues(alpha: 0.08)
-                  : colors.errorContainer.withValues(alpha: 0.35),
-              borderRadius: Style.getCircularBorderRadius(12),
-              border: Border.all(
-                color: hasDates
-                    ? _brandGreen.withValues(alpha: 0.3)
-                    : colors.error.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  hasDates
-                      ? Icons.info_outline_rounded
-                      : Icons.event_busy_rounded,
-                  color: hasDates ? _brandGreen : colors.error,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    hasDates
-                        ? _currentAvailability.attentionSchedule
-                        : (_currentAvailability.noAttentionMessage ??
-                              'Sin fechas disponibles.'),
-                    style: Style.getTextStyle(
-                      color: Style.getTextColor(),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _currentAvailability.noAttentionMessage ??
+                      'Sin fechas disponibles para tu dirección académica.',
+                  style: Style.getTextStyle(
+                    color: Style.getTextColor(),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      );
-    }
+        );
+      }
 
-    // PASO 2: FECHA Y HORARIO
-    if (_currentStep == 1) {
-      final hours = List.generate(
-        widget.endHour - widget.startHour,
-        (i) => widget.startHour + i,
-      );
+      final dynamicHours = currentSlots
+          .map((s) => int.tryParse(s.time.split(':').first))
+          .whereType<int>()
+          .toSet()
+          .toList()
+        ..sort();
 
-      final hourPrefix = '${_selectedHourFilter.toString().padLeft(2, '0')}:';
+      final hours = dynamicHours.isNotEmpty
+          ? dynamicHours
+          : List.generate(
+              widget.endHour - widget.startHour,
+              (i) => widget.startHour + i,
+            );
+
+      final effectiveHourFilter = hours.contains(_selectedHourFilter)
+          ? _selectedHourFilter
+          : hours.first;
+
+      final hourPrefix = '${effectiveHourFilter.toString().padLeft(2, '0')}:';
       final filteredSlots = currentSlots
           .asMap()
           .entries
           .where((entry) => entry.value.time.startsWith(hourPrefix))
           .toList();
 
+      final rangoTexto = hours.isNotEmpty
+          ? '${hours.first.toString().padLeft(2, '0')}:00 - ${(hours.last + 1).toString().padLeft(2, '0')}:00'
+          : '${widget.startHour}:00 - ${widget.endHour}:00';
+
       return Column(
-        key: const ValueKey('step_1'),
+        key: const ValueKey('step_0'),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Banner informativo de la dirección asignada al usuario
+          if (_selectedDireccion != null && _selectedDireccion!.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: _brandGreen.withValues(alpha: 0.08),
+                borderRadius: Style.getCircularBorderRadius(12),
+                border: Border.all(
+                  color: _brandGreen.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.school_outlined,
+                    color: _brandGreen,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedDireccion!,
+                          style: Style.getHeaderThree(
+                            color: Style.getTextColor(),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (_currentAvailability.attentionSchedule.isNotEmpty)
+                          Text(
+                            _currentAvailability.attentionSchedule,
+                            style: Style.getTextStyle(
+                              color: Style.getObscureTextColor(),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+
           Text(
             '1. Fecha disponible · ${_currentAvailability.availableDates.isEmpty ? DateTime.now().year : _currentAvailability.availableDates[_selectedDateIndex].rawDate.substring(0, 4)}',
             style: Style.getHeaderThree(
@@ -586,7 +688,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '2. Hora (${widget.startHour}:00 - ${widget.endHour}:00)',
+                '2. Hora ($rangoTexto)',
                 style: Style.getHeaderThree(
                   color: Style.getTextColor(),
                   fontSize: 13,
@@ -623,7 +725,7 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
               separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final hour = hours[index];
-                final isHourSelected = _selectedHourFilter == hour;
+                final isHourSelected = effectiveHourFilter == hour;
                 final label = '${hour.toString().padLeft(2, '0')}:00';
 
                 final prefix = '${hour.toString().padLeft(2, '0')}:';
@@ -759,9 +861,9 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
       );
     }
 
-    // PASO 3: MOTIVO Y RESUMEN DE CONFIRMACIÓN
+    // PASO 2: MOTIVO Y RESUMEN DE CONFIRMACIÓN
     return Column(
-      key: const ValueKey('step_2'),
+      key: const ValueKey('step_1'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
@@ -782,33 +884,36 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
                   fontSize: 12,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                _selectedDireccion,
-                style: Style.getTextStyle(
-                  color: Style.getTextColor(),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(height: 8),
+              if (_selectedDireccion != null &&
+                  _selectedDireccion!.isNotEmpty) ...[
+                Text(
+                  _selectedDireccion!,
+                  style: Style.getHeaderThree(
+                    fontWeight: FontWeight.w700,
+                    color: Style.getTextColor(),
+                    fontSize: 12,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${selectedDateObj?.dayName ?? ''} ${selectedDateObj?.labelDate ?? ''} · ${selectedSlotObj?.range ?? ''}',
-                style: Style.getTextStyle(
-                  color: Style.getObscureTextColor(),
-                  fontSize: 11,
+                const SizedBox(height: 4),
+              ],
+              if (selectedDateObj != null && selectedSlotObj != null)
+                Text(
+                  '${selectedDateObj.dayName} ${selectedDateObj.labelDate} · ${selectedSlotObj.time} h',
+                  style: Style.getTextStyle(
+                    color: Style.getObscureTextColor(),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
             ],
           ),
         ),
         const SizedBox(height: 14),
         Text(
-          'Motivo de la atención',
+          'Motivo de atención',
           style: Style.getHeaderThree(
-            color: _motivoInvalid
-                ? Style.getErrorColor()
-                : Style.getTextColor(),
+            color: Style.getTextColor(),
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
@@ -817,50 +922,38 @@ class _CardFormCalendarState extends State<CardFormCalendar> {
         TextField(
           controller: _motivoController,
           maxLines: 4,
-          minLines: 3,
-          onChanged: (value) {
-            if (_motivoInvalid && value.trim().isNotEmpty) {
+          maxLength: 250,
+          onChanged: (_) {
+            if (_motivoInvalid && _motivoController.text.trim().isNotEmpty) {
               setState(() => _motivoInvalid = false);
             }
           },
           decoration: InputDecoration(
-            hintText: 'Describe brevemente el motivo de tu atención...',
+            hintText: 'Describe brevemente el motivo de tu cita...',
             hintStyle: Style.getTextStyle(
-              color: Style.getObscureTextColor().withValues(alpha: 0.7),
+              color: Style.getObscureTextColor(),
               fontSize: 11,
             ),
             filled: true,
             fillColor: colors.surfaceContainerLowest,
-            contentPadding: const EdgeInsets.all(14),
+            errorText: _motivoInvalid
+                ? 'Este campo es obligatorio'
+                : null,
             border: OutlineInputBorder(
               borderRadius: Style.getCircularBorderRadius(12),
               borderSide: BorderSide(
-                color: _motivoInvalid
-                    ? Style.getErrorColor()
-                    : Style.getFormFieldBorderColor(),
+                color: colors.outlineVariant.withValues(alpha: 0.6),
               ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: Style.getCircularBorderRadius(12),
               borderSide: BorderSide(
-                color: _motivoInvalid
-                    ? Style.getErrorColor()
-                    : Style.getFormFieldBorderColor(),
+                color: colors.outlineVariant.withValues(alpha: 0.6),
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: Style.getCircularBorderRadius(12),
-              borderSide: BorderSide(
-                color: _motivoInvalid
-                    ? Style.getErrorColor()
-                    : Style.getPrimaryColor(),
-                width: 1.5,
-              ),
-            ),
-            errorText: _motivoInvalid ? 'Este campo es obligatorio.' : null,
-            errorStyle: Style.getTextStyle(
-              color: Style.getErrorColor(),
-              fontSize: 10,
+              borderSide: BorderSide(color: _brandGreen, width: 1.5),
             ),
           ),
         ),
